@@ -1,0 +1,43 @@
+site_name: ICS Combiner
+site_description: FastAPI service for combining multiple iCalendar feeds into a single calendar
+site_url: https://amattas.github.io/ics-combiner/
+repo_url: https://github.com/amattas/ics-combiner
+repo_name: amattas/ics-combiner
+
+extra:
+  version:
+    provider: mike
+    default: latest
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: false
+            members_order: source
+            show_if_no_docstring: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+            show_root_heading: true
+            show_root_full_path: false
+            filters:
+              - "!^_"
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Endpoints: endpoints.md
+

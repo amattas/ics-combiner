@@ -17,7 +17,6 @@ Environment
 - ICS_NAME: Combined calendar display name
 - ICS_DAYS_HISTORY: Days of history to include (int)
 - CACHE_TTL_ICS_SOURCE_DEFAULT: Default TTL (seconds) for source ICS caching
-- CACHE_TTL_ICS_SOURCE_<ID>: Per‑calendar TTL override (seconds) for source ID
 
 Calendar source config
 Each object in `ICS_SOURCES` may include the following keys (compatible with calcomb):
