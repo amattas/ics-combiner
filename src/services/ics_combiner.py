@@ -215,7 +215,12 @@ class ICSCombiner:
                     # Shift start earlier and extend duration accordingly
                     new_start = dtstart_val - pad
                     copied_event["DTSTART"] = new_start
-                    copied_event.DURATION = copied_event.duration + pad
+                    # Extend duration safely: if no duration yet, start with pad
+                    existing_duration = getattr(copied_event, "duration", None)
+                    if existing_duration is not None:
+                        copied_event.DURATION = existing_duration + pad
+                    else:
+                        copied_event.DURATION = pad
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
