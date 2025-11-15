@@ -1,0 +1,6 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-dotenv==1.0.1
+requests==2.32.3
+icalendar==5.0.13
+redis==5.2.0
