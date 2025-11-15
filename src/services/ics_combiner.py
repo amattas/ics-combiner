@@ -36,6 +36,67 @@ class ICSCombiner:
         )
 
     @staticmethod
+    def _normalize_ics_text(ics_text: str) -> str:
+        """
+        Normalize a few common non‑RFC5545 datetime forms that appear in some
+        source feeds so that icalendar can parse them.
+
+        Example fixed pattern:
+          DTSTART:2025-11-01 13:30:00+00:00  ->  DTSTART:20251101T133000Z
+        """
+
+        def _replace(match: re.Match) -> str:
+            prop = match.group(1)  # DTSTART or DTEND
+            raw_value = match.group(2).strip()
+            try:
+                dt = datetime.fromisoformat(raw_value)
+            except ValueError:
+                # If we cannot parse, leave the line unchanged
+                return match.group(0)
+
+            if not isinstance(dt, datetime):
+                return match.group(0)
+
+            # Convert offset-aware times to UTC and emit Z suffix
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(ZoneInfo("UTC"))
+                formatted = dt.strftime("%Y%m%dT%H%M%SZ")
+            else:
+                formatted = dt.strftime("%Y%m%dT%H%M%S")
+
+            return f"{prop}:{formatted}"
+
+        pattern = re.compile(
+            r"^(DTSTART|DTEND):(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2})?)\s*$",
+            re.MULTILINE,
+        )
+        return pattern.sub(_replace, ics_text)
+
+    @staticmethod
+    def _parse_datetime_or_date(value: str) -> Optional[object]:
+        """
+        Best-effort parsing for non‑RFC5545 datetime/date strings that appear in
+        some tolerant ICS feeds (for example: '2025-11-01 13:30:00+00:00').
+
+        Returns a datetime or date if parsing succeeds, otherwise None.
+        """
+        text = value.strip()
+        if not text:
+            return None
+
+        # Try full ISO 8601 datetime first (with or without offset, with space or 'T')
+        try:
+            return datetime.fromisoformat(text)
+        except ValueError:
+            pass
+
+        # Try ISO date (YYYY-MM-DD)
+        try:
+            return date.fromisoformat(text)
+        except ValueError:
+            return None
+
+    @staticmethod
     def load_sources_from_env() -> Tuple[List[Dict[str, Any]], str, int]:
         # Backward compatibility with Azure function env names
         sources_raw = os.getenv("ICS_SOURCES") or os.getenv("CalendarSources")
@@ -81,7 +142,7 @@ class ICSCombiner:
         if self.cache and self.cache.is_connected():
             cached = self.cache.get(cache_key)
             if isinstance(cached, str):
-                return cached
+                return self._normalize_ics_text(cached)
 
         # Fetch from network
         try:
@@ -91,11 +152,11 @@ class ICSCombiner:
             logger.error(f"Failed to fetch ICS for source {source.get('Id')}: {err}")
             return None
 
-        ics_text = resp.text
+        ics_text = self._normalize_ics_text(resp.text)
 
         # Store in cache
         if self.cache and self.cache.is_connected():
-            # Store as raw string
+            # Store normalized string
             self.cache.set(cache_key, ics_text, ttl=ttl)
 
         return ics_text
@@ -173,7 +234,7 @@ class ICSCombiner:
                     else:
                         copied_event.add(key, value)
 
-                # Resolve DTSTART safely (may be missing or wrapped)
+                # Resolve and normalize DTSTART (may be missing or stored as text)
                 dtstart_prop = copied_event.get("DTSTART")
                 if dtstart_prop is None:
                     logger.warning(
@@ -184,8 +245,27 @@ class ICSCombiner:
                     )
                     # Skip events without a start time
                     continue
+
                 # icalendar properties usually carry the real value on .dt
                 dtstart_val = getattr(dtstart_prop, "dt", dtstart_prop)
+
+                # Some feeds provide non‑RFC5545 strings that icalendar cannot
+                # interpret as dates/times (for example, ISO 8601 with spaces
+                # and offsets). Normalize those into proper datetime/date values
+                # so that to_ical() always emits RFC5545-compliant DTSTART.
+                if isinstance(dtstart_val, str):
+                    parsed = self._parse_datetime_or_date(dtstart_val)
+                    if parsed is None:
+                        logger.warning(
+                            "Skipping event with unparseable DTSTART (source_id=%s, prefix=%s, raw_dtstart=%s, summary=%s)",
+                            calendar.get("Id"),
+                            calendar.get("Prefix"),
+                            dtstart_val,
+                            copied_event.get("SUMMARY"),
+                        )
+                        continue
+                    dtstart_val = parsed
+                    copied_event["DTSTART"] = parsed
 
                 # Set duration if specified
                 if calendar.get("Duration") is not None and isinstance(
