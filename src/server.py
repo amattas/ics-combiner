@@ -33,7 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 api_key = os.getenv("ICS_API_KEY")
-md5_salt = os.getenv("MD5_SALT", "")
+# Prefer SALT, but fall back to legacy MD5_SALT for backward compatibility
+path_salt = os.getenv("SALT") or os.getenv("MD5_SALT", "")
 
 
 def _calc_api_hash(key: str, salt: str) -> str:
@@ -99,11 +100,11 @@ def create_app() -> FastAPI:
 
     if api_key:
         logger.info("ICS_API_KEY is set - using dual-factor path-based authentication")
-        api_hash = _calc_api_hash(api_key, md5_salt)
+        api_hash = _calc_api_hash(api_key, path_salt)
         logger.info(f"API key hash: {api_hash[:8]}... (first 8 chars)")
 
         # Authenticated ICS endpoint
-        @app.get(f"/app/{api_key}/{api_hash}/ics/combined")
+        @app.get(f"/app/{api_key}/{api_hash}/ics")
         async def combined(
             request: Request,
             show: Optional[str] = Query(

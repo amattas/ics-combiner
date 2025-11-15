@@ -3,7 +3,7 @@ ICS Combiner (FastAPI)
 This service combines multiple iCalendar (ICS) feeds into a single calendar, with optional per‑calendar transforms. It runs as a FastAPI app with the same path‑based authentication scheme used by the MCP servers, and supports Redis caching for source ICS files with configurable refresh TTLs.
 
 Key features
-- FastAPI app with optional dual‑factor path auth using `ICS_API_KEY` and `MD5_SALT`
+- FastAPI app with optional dual‑factor path auth using `ICS_API_KEY` and `SALT` (with legacy `MD5_SALT` support)
 - Redis‑backed caching of source ICS feeds
 - Per‑calendar refresh TTL with environment overrides
 - Optional show/hide filtering via query params
@@ -11,7 +11,8 @@ Key features
 
 Environment
 - ICS_API_KEY: API key to enable path‑based auth (optional for local/dev)
-- MD5_SALT: Optional salt used for API path hash
+- SALT: Optional salt used for API path hash (preferred)
+- MD5_SALT: Legacy name for `SALT` (still supported)
 - REDIS_HOST, REDIS_SSL_PORT (default 6380), REDIS_KEY: Redis connection
 - ICS_SOURCES: JSON array of calendar configs (see example)
 - ICS_NAME: Combined calendar display name
@@ -31,7 +32,7 @@ Each object in `ICS_SOURCES` may include the following keys (compatible with cal
 
 Endpoints
 - GET /app/health — health status (no auth)
-- GET /app/{ICS_API_KEY}/{md5_hash}/ics/combined?show=1,2&hide=3 — combined calendar
+- GET /app/{ICS_API_KEY}/{hash}/ics?show=1,2&hide=3 — combined calendar
 
 Run locally
 1) Copy `.env.example` to `.env.local` and set values
