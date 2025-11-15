@@ -1,0 +1,68 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - release/*
+
+env:
+  REGISTRY: registry.digitalocean.com
+  REGISTRY_NAMESPACE: ${{ vars.DOCR_REGISTRY }}
+  IMAGE_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Determine deployment tag
+        id: vars
+        shell: bash
+        run: |
+          ref="${GITHUB_REF_NAME}"
+          if [ "$ref" = "release/latest" ]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            tag="${ref#release/}"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
+
