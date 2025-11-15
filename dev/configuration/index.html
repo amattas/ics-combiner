@@ -495,7 +495,8 @@
 <h2 id="core-settings">Core Settings</h2>
 <ul>
 <li><code>ICS_API_KEY</code> – API key to enable path‑based authentication (optional for local/dev)</li>
-<li><code>MD5_SALT</code> – Optional salt used when computing the API path hash</li>
+<li><code>SALT</code> – Optional salt used when computing the API path hash (preferred)</li>
+<li><code>MD5_SALT</code> – Legacy name for <code>SALT</code> (still supported)</li>
 </ul>
 <h2 id="calendar-sources">Calendar Sources</h2>
 <ul>
@@ -528,9 +529,8 @@
 <p><code>REDIS_KEY</code> – Redis access key</p>
 </li>
 <li>
-<p><code>CACHE_TTL_ICS_SOURCE_DEFAULT</code> – Default TTL (seconds) for source ICS caching</p>
+<p><code>CACHE_TTL_ICS_SOURCE_DEFAULT</code> – Default TTL (seconds) for source ICS caching (used when a source does not define <code>RefreshSeconds</code>)</p>
 </li>
-<li><code>CACHE_TTL_ICS_SOURCE_&lt;ID&gt;</code> – Per‑calendar TTL override (seconds) for source ID</li>
 </ul>
 <p>When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.</p>
 
