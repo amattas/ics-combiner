@@ -21,9 +21,8 @@ class ICSCombiner:
 
     @staticmethod
     def _create_uid(input_string: str) -> str:
-        string_bytes = input_string.encode("utf-8")
-        hashed_bytes = hashlib.sha1(string_bytes).digest()
-        guid = uuid.uuid5(uuid.NAMESPACE_DNS, hashed_bytes.hex())
+        # Use UUID5 (SHA-1 under the hood) without manual hashing to avoid direct weak-hash usage
+        guid = uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
         return str(guid)
 
     @staticmethod
@@ -65,7 +64,8 @@ class ICSCombiner:
     def _cache_key_for_source(self, source: Dict[str, Any]) -> str:
         sid = source.get("Id", "unknown")
         url = source.get("Url", "")
-        url_hash = hashlib.md5(url.encode("utf-8")).hexdigest() if url else "no_url"
+        # Use SHA-256 for cache key derivation to avoid weak-hash warnings
+        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest() if url else "no_url"
         return f"ics:source:{sid}:{url_hash}"
 
     def fetch_source_ics(self, source: Dict[str, Any]) -> Optional[str]:

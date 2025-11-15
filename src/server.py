@@ -41,7 +41,8 @@ def _calc_api_hash(key: str, salt: str) -> str:
         hash_input = f"{salt}{key}"
     else:
         hash_input = key
-    return hashlib.md5(hash_input.encode()).hexdigest()
+    # Use SHA-256 for the path hash to avoid weak-hash warnings
+    return hashlib.sha256(hash_input.encode()).hexdigest()
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
