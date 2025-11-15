@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write  # allow mike to push to gh-pages
+  pages: write     # allow deployment to GitHub Pages
+  id-token: write  # required by actions/deploy-pages
 
 concurrency:
   group: "pages"
@@ -96,3 +98,27 @@ jobs:
           fi
 
           echo "Deployed docs for version: $VERSION (alias: ${ALIAS:-none})"
+
+      - name: Fetch latest gh-pages branch
+        run: |
+          git fetch origin gh-pages:gh-pages
+
+      - name: Prepare Pages artifact from gh-pages
+        run: |
+          git worktree add site gh-pages
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: deploy-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
