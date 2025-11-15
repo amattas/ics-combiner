@@ -51,24 +51,11 @@ class ICSCombiner:
         return calendars, name, days_history
 
     def _get_source_ttl(self, source: Dict[str, Any]) -> int:
-        # Source-level override
+        # Source-level override from source configuration JSON
         if isinstance(source.get("RefreshSeconds"), int):
             return max(0, int(source["RefreshSeconds"]))
 
-        # Env var per-source override by ID: CACHE_TTL_ICS_SOURCE_<ID>
-        try:
-            sid = int(source.get("Id")) if source.get("Id") is not None else None
-        except Exception:
-            sid = None
-        if sid is not None:
-            env_key = f"CACHE_TTL_ICS_SOURCE_{sid}"
-            if os.getenv(env_key):
-                try:
-                    return max(0, int(os.getenv(env_key, "0")))
-                except ValueError:
-                    logger.warning(f"Invalid TTL in {env_key}, using default")
-
-        # Global default
+        # Global default (can be overridden via CACHE_TTL_ICS_SOURCE_DEFAULT)
         return CacheTTL.ICS_SOURCE_DEFAULT
 
     def _cache_key_for_source(self, source: Dict[str, Any]) -> str:
@@ -222,4 +209,3 @@ class ICSCombiner:
             combined_cal.add_component(e)
 
         return combined_cal.to_ical()
-
