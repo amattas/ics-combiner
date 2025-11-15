@@ -1,5 +1,12 @@
 [
   {
+    "version": "dev-44c671e",
+    "title": "dev-44c671e",
+    "aliases": [
+      "dev"
+    ]
+  },
+  {
     "version": "dev-f135d2e",
     "title": "dev-f135d2e",
     "aliases": []
