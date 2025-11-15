@@ -8,7 +8,7 @@ ICS Combiner exposes a small set of HTTP endpoints for health checks and combine
 
 ## Combined Calendar
 
-- `GET /app/{ICS_API_KEY}/{md5_hash}/ics/combined`
+- `GET /app/{ICS_API_KEY}/{hash}/ics`
 
   Returns the combined ICS calendar built from the configured `ICS_SOURCES`.
 
@@ -20,4 +20,4 @@ ICS Combiner exposes a small set of HTTP endpoints for health checks and combine
   Authentication:
 
   - `ICS_API_KEY` is the API key configured via environment variable.
-  - `md5_hash` is computed from `ICS_API_KEY` and optional `MD5_SALT` using the same path‑based auth scheme as the MCP servers.
+  - `hash` is computed from `ICS_API_KEY` and optional `SALT` (or legacy `MD5_SALT`) using SHA‑256 (same scheme as the MCP servers).

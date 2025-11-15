@@ -5,7 +5,8 @@ ICS Combiner is configured via environment variables. These are typically set in
 ## Core Settings
 
 - `ICS_API_KEY` – API key to enable path‑based authentication (optional for local/dev)
-- `MD5_SALT` – Optional salt used when computing the API path hash
+- `SALT` – Optional salt used when computing the API path hash (preferred)
+- `MD5_SALT` – Legacy name for `SALT` (still supported)
 
 ## Calendar Sources
 
@@ -31,7 +32,6 @@ For Redis‑backed caching of source ICS feeds:
 - `REDIS_SSL_PORT` – Redis SSL port (default: `6380`)
 - `REDIS_KEY` – Redis access key
 
-- `CACHE_TTL_ICS_SOURCE_DEFAULT` – Default TTL (seconds) for source ICS caching
-- `CACHE_TTL_ICS_SOURCE_<ID>` – Per‑calendar TTL override (seconds) for source ID
+- `CACHE_TTL_ICS_SOURCE_DEFAULT` – Default TTL (seconds) for source ICS caching (used when a source does not define `RefreshSeconds`)
 
 When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.
