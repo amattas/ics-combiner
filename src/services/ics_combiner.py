@@ -265,49 +265,46 @@ class ICSCombiner:
                         )
                         continue
                     dtstart_val = parsed
-                    # Replace existing DTSTART with a proper datetime-valued one
+                    # Replace existing DTSTART with a proper datetime- or date-valued one
                     copied_event.pop("DTSTART", None)
                     copied_event.add("dtstart", dtstart_val)
 
-                # Set duration if specified
+                # Use icalendar's attribute access for DTSTART/DTEND/DURATION so that
+                # DTEND/DURATION behaviour matches the original combcal implementation.
+                dtstart_attr = getattr(copied_event, "DTSTART", None)
+                if dtstart_attr is None:
+                    logger.warning(
+                        "Skipping event with invalid DTSTART (source_id=%s, prefix=%s, summary=%s)",
+                        calendar.get("Id"),
+                        calendar.get("Prefix"),
+                        copied_event.get("SUMMARY"),
+                    )
+                    continue
+
+                # Set duration if specified (combcal semantics)
                 if calendar.get("Duration") is not None and isinstance(
-                    dtstart_val, datetime
+                    dtstart_attr, datetime
                 ):
                     copied_event.DURATION = timedelta(minutes=calendar.get("Duration"))
-                else:
-                    # Safely check for missing DTEND/DURATION without relying on attributes
-                    has_dtend = copied_event.get("DTEND") is not None
-                    has_duration = copied_event.get("DURATION") is not None
+                # If there is no duration or end time set, add defaults (combcal semantics)
+                elif copied_event.DTEND is None and copied_event.DURATION is None:
+                    if isinstance(dtstart_attr, datetime):
+                        copied_event.DURATION = timedelta(minutes=5)
+                    elif isinstance(dtstart_attr, date):
+                        copied_event.DURATION = timedelta(days=1)
+                    else:
+                        # Skip if DTSTART is not recognisable
+                        continue
 
-                    # If there is no duration or end time set appropriately
-                    if not has_dtend and not has_duration:
-                        if isinstance(dtstart_val, datetime):
-                            copied_event.DURATION = timedelta(minutes=5)
-                        elif isinstance(dtstart_val, date):
-                            copied_event.DURATION = timedelta(days=1)
-                        else:
-                            # Skip if DTSTART is not recognisable
-                            continue
-
-                # Add padding (arrival time) exactly as in the original combcal:
+                # Add padding (arrival time) using the original combcal rules:
                 # - Shift DTSTART earlier by PadStartMinutes.
                 # - Set DURATION based on the event's effective duration plus the pad.
-                #   The effective duration comes from either an existing DURATION
-                #   property or the DTEND/DTSTART difference.
                 if calendar.get("PadStartMinutes") is not None and isinstance(
-                    dtstart_val, datetime
+                    copied_event.DTSTART, datetime
                 ):
                     pad = timedelta(minutes=calendar.get("PadStartMinutes"))
-
-                    # Shift start earlier
-                    new_start = dtstart_val - pad
-                    copied_event.pop("DTSTART", None)
-                    copied_event.add("dtstart", new_start)
-
-                    # Use icalendar's derived duration (from DURATION or DTEND/DTSTART)
-                    existing_duration = getattr(copied_event, "duration", None)
-                    if existing_duration is not None:
-                        copied_event.DURATION = existing_duration + pad
+                    copied_event.DTSTART = copied_event.DTSTART - pad
+                    copied_event.DURATION = copied_event.duration + pad
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
