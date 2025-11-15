@@ -173,9 +173,23 @@ class ICSCombiner:
                     else:
                         copied_event.add(key, value)
 
+                # Resolve DTSTART safely (may be missing or wrapped)
+                dtstart_prop = copied_event.get("DTSTART")
+                if dtstart_prop is None:
+                    logger.warning(
+                        "Skipping event without DTSTART (source_id=%s, prefix=%s, summary=%s)",
+                        calendar.get("Id"),
+                        calendar.get("Prefix"),
+                        copied_event.get("SUMMARY"),
+                    )
+                    # Skip events without a start time
+                    continue
+                # icalendar properties usually carry the real value on .dt
+                dtstart_val = getattr(dtstart_prop, "dt", dtstart_prop)
+
                 # Set duration if specified
                 if calendar.get("Duration") is not None and isinstance(
-                    copied_event.DTSTART, datetime
+                    dtstart_val, datetime
                 ):
                     copied_event.DURATION = timedelta(minutes=calendar.get("Duration"))
                 else:
@@ -185,9 +199,9 @@ class ICSCombiner:
 
                     # If there is no duration or end time set appropriately
                     if not has_dtend and not has_duration:
-                        if isinstance(copied_event.DTSTART, datetime):
+                        if isinstance(dtstart_val, datetime):
                             copied_event.DURATION = timedelta(minutes=5)
-                        elif isinstance(copied_event.DTSTART, date):
+                        elif isinstance(dtstart_val, date):
                             copied_event.DURATION = timedelta(days=1)
                         else:
                             # Skip if DTSTART is not recognisable
@@ -195,14 +209,13 @@ class ICSCombiner:
 
                 # Add padding
                 if calendar.get("PadStartMinutes") is not None and isinstance(
-                    copied_event.DTSTART, datetime
+                    dtstart_val, datetime
                 ):
-                    copied_event.DTSTART = copied_event.DTSTART - timedelta(
-                        minutes=calendar.get("PadStartMinutes")
-                    )
-                    copied_event.DURATION = copied_event.duration + timedelta(
-                        minutes=calendar.get("PadStartMinutes")
-                    )
+                    pad = timedelta(minutes=calendar.get("PadStartMinutes"))
+                    # Shift start earlier and extend duration accordingly
+                    new_start = dtstart_val - pad
+                    copied_event["DTSTART"] = new_start
+                    copied_event.DURATION = copied_event.duration + pad
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
