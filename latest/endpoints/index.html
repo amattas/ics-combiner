@@ -474,7 +474,7 @@
 </ul>
 <h2 id="combined-calendar">Combined Calendar</h2>
 <ul>
-<li><code>GET /app/{ICS_API_KEY}/{md5_hash}/ics/combined</code></li>
+<li><code>GET /app/{ICS_API_KEY}/{hash}/ics</code></li>
 </ul>
 <p>Returns the combined ICS calendar built from the configured <code>ICS_SOURCES</code>.</p>
 <p>Query parameters:</p>
@@ -485,7 +485,7 @@
 <p>Authentication:</p>
 <ul>
 <li><code>ICS_API_KEY</code> is the API key configured via environment variable.</li>
-<li><code>md5_hash</code> is computed from <code>ICS_API_KEY</code> and optional <code>MD5_SALT</code> using the same path‑based auth scheme as the MCP servers.</li>
+<li><code>hash</code> is computed from <code>ICS_API_KEY</code> and optional <code>SALT</code> (or legacy <code>MD5_SALT</code>) using SHA‑256 (same scheme as the MCP servers).</li>
 </ul>
 
 
