@@ -3,8 +3,6 @@ name: Docs
 on:
   push:
     branches:
-      - main
-      - master
       - 'release/**'
   workflow_dispatch:
 
@@ -97,4 +95,3 @@ jobs:
           fi
 
           echo "Deployed docs for version: $VERSION (alias: ${ALIAS:-none})"
-
