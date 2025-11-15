@@ -178,15 +178,20 @@ class ICSCombiner:
                     copied_event.DTSTART, datetime
                 ):
                     copied_event.DURATION = timedelta(minutes=calendar.get("Duration"))
-                # If there is no duration or end time set appropriately
-                elif copied_event.DTEND is None and copied_event.DURATION is None:
-                    if isinstance(copied_event.DTSTART, datetime):
-                        copied_event.DURATION = timedelta(minutes=5)
-                    elif isinstance(copied_event.DTSTART, date):
-                        copied_event.DURATION = timedelta(days=1)
-                    else:
-                        # Skip if DTSTART is not recognisable
-                        continue
+                else:
+                    # Safely check for missing DTEND/DURATION without relying on attributes
+                    has_dtend = copied_event.get("DTEND") is not None
+                    has_duration = copied_event.get("DURATION") is not None
+
+                    # If there is no duration or end time set appropriately
+                    if not has_dtend and not has_duration:
+                        if isinstance(copied_event.DTSTART, datetime):
+                            copied_event.DURATION = timedelta(minutes=5)
+                        elif isinstance(copied_event.DTSTART, date):
+                            copied_event.DURATION = timedelta(days=1)
+                        else:
+                            # Skip if DTSTART is not recognisable
+                            continue
 
                 # Add padding
                 if calendar.get("PadStartMinutes") is not None and isinstance(
