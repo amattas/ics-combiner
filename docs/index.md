@@ -8,4 +8,3 @@ Use this documentation to:
 - Get started running it locally or via Docker
 - Configure environment variables and calendar sources
 - Explore the available HTTP endpoints and query parameters
-

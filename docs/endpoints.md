@@ -21,4 +21,3 @@ ICS Combiner exposes a small set of HTTP endpoints for health checks and combine
 
   - `ICS_API_KEY` is the API key configured via environment variable.
   - `md5_hash` is computed from `ICS_API_KEY` and optional `MD5_SALT` using the same path‑based auth scheme as the MCP servers.
-

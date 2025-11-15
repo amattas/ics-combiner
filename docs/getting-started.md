@@ -44,4 +44,3 @@ This guide walks through running the ICS Combiner service locally and with Docke
    ```
 
 3. Access endpoints via `http://localhost:8080`.
-

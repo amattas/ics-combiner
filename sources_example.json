@@ -1,63 +1,63 @@
 [
-    { 
+    {
         "Id": 0,
-        "Url": "http://p68-caldav.icloud.com/published/2/OTAwMTM0NjY5MDAxMzQ2NnQtnzACrRK6PFBPnGU87sglO3xEPc6Xfb2NW2J6iHOL674qT5N0ykRuJoRZAT7oCi2aGyEtvY0P9J9OcvfVx7E" 
+        "Url": "http://p68-caldav.icloud.com/published/2/OTAwMTM0NjY5MDAxMzQ2NnQtnzACrRK6PFBPnGU87sglO3xEPc6Xfb2NW2J6iHOL674qT5N0ykRuJoRZAT7oCi2aGyEtvY0P9J9OcvfVx7E"
    },
-    { 
+    {
         "Id": 1,
-        "Url": "http://ical-cdn.teamsnap.com/team_schedule/9742b8ae-f5cc-401d-a844-2442807819b1.ics", 
+        "Url": "http://ical-cdn.teamsnap.com/team_schedule/9742b8ae-f5cc-401d-a844-2442807819b1.ics",
         "Prefix": "Graycin LFC",
         "FilterDuplicates": true
    },
-    { 
+    {
         "Id": 2,
-        "Url": "http://ical-cdn.teamsnap.com/team_schedule/filter/games/9742b8ae-f5cc-401d-a844-2442807819b1.ics", 
-        "Prefix": "Graycin LFC", 
+        "Url": "http://ical-cdn.teamsnap.com/team_schedule/filter/games/9742b8ae-f5cc-401d-a844-2442807819b1.ics",
+        "Prefix": "Graycin LFC",
         "PadStartMinutes": 30,
         "Duration": 60,
         "FilterDuplicates": true
    },
-    { 
+    {
         "Id": 3,
-        "Url": "http://ical-cdn.teamsnap.com/team_schedule/3d002263-7e25-4162-aa2f-bfbf2fb541d7.ics", 
+        "Url": "http://ical-cdn.teamsnap.com/team_schedule/3d002263-7e25-4162-aa2f-bfbf2fb541d7.ics",
         "Prefix": "Ian BF",
         "FilterDuplicates": true
    },
-    { 
+    {
         "Id": 4,
-        "Url": "http://ical-cdn.teamsnap.com/team_schedule/filter/games/3d002263-7e25-4162-aa2f-bfbf2fb541d7.ics", 
-        "Prefix": "Ian BF", 
+        "Url": "http://ical-cdn.teamsnap.com/team_schedule/filter/games/3d002263-7e25-4162-aa2f-bfbf2fb541d7.ics",
+        "Prefix": "Ian BF",
         "PadStartMinutes": 40,
         "Duration": 80,
         "FilterDuplicates": true
    },
-    { 
+    {
         "Id": 5,
-        "Url": "https://www.horizonwebref.com/syncICS.hwr?o=54IJ&enc=e2d8bfe2e02455719835260f980ef925fedd4469", 
-        "Prefix": "Ian Ref", 
+        "Url": "https://www.horizonwebref.com/syncICS.hwr?o=54IJ&enc=e2d8bfe2e02455719835260f980ef925fedd4469",
+        "Prefix": "Ian Ref",
         "PadStartMinutes": 30,
         "MakeUnique": true
    },
-    { 
+    {
         "Id": 6,
-        "Url": "https://www.horizonwebref.com/syncICS.hwr?o=54II&enc=c0c448142eee6ffd3c79294be0f3275c7281efef", 
-        "Prefix": "Tony Ref", 
+        "Url": "https://www.horizonwebref.com/syncICS.hwr?o=54II&enc=c0c448142eee6ffd3c79294be0f3275c7281efef",
+        "Prefix": "Tony Ref",
         "PadStartMinutes": 30,
         "MakeUnique": true
    },
-    { 
+    {
         "Id": 7,
-        "Url": "https://www.lakotaonline.com/cf_calendar/feed.cfm?type=ical&feedID=9D263B81A06F4CC19972063FCE6992F9", 
+        "Url": "https://www.lakotaonline.com/cf_calendar/feed.cfm?type=ical&feedID=9D263B81A06F4CC19972063FCE6992F9",
         "Prefix": "Ridge"
     },
-    { 
+    {
         "Id": 8,
-        "Url": "https://www.lakotaonline.com/cf_calendar/feed.cfm?type=ical&feedID=3D40925BA6AB4F438922D62BC04B68E1", 
+        "Url": "https://www.lakotaonline.com/cf_calendar/feed.cfm?type=ical&feedID=3D40925BA6AB4F438922D62BC04B68E1",
         "Prefix": "Freedom"
    },
-    { 
+    {
         "Id": 9,
-        "Url": "https://www.lakotaonline.com/calendar/calendar_376.ics", 
+        "Url": "https://www.lakotaonline.com/calendar/calendar_376.ics",
         "Prefix": "Lakota"
    },
    {
@@ -67,4 +67,4 @@
         "PadStartMinutes": 30
    }
    ]
-   
+
