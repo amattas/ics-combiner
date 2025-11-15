@@ -88,13 +88,7 @@ jobs:
 
           # For dev builds, clean up old dev-* versions so only one dev entry exists
           if [[ "$VERSION" == "dev" ]]; then
-            OLD_DEVS="$(mike list -j | python - << 'PY'
-import json, sys
-versions = json.load(sys.stdin)
-devs = [v["version"] for v in versions if v["version"].startswith("dev-")]
-print(" ".join(devs))
-PY
-)"
+            OLD_DEVS="$(mike list -j | python -c 'import json,sys; v=json.load(sys.stdin); print(\" \".join(d[\"version\"] for d in v if d[\"version\"].startswith(\"dev-\")))')"
             if [[ -n "$OLD_DEVS" ]]; then
               mike delete --push $OLD_DEVS || true
             fi
