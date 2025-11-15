@@ -265,7 +265,9 @@ class ICSCombiner:
                         )
                         continue
                     dtstart_val = parsed
-                    copied_event["DTSTART"] = parsed
+                    # Replace existing DTSTART with a proper datetime-valued one
+                    copied_event.pop("DTSTART", None)
+                    copied_event.add("dtstart", dtstart_val)
 
                 # Set duration if specified
                 if calendar.get("Duration") is not None and isinstance(
@@ -294,7 +296,9 @@ class ICSCombiner:
                     pad = timedelta(minutes=calendar.get("PadStartMinutes"))
                     # Shift start earlier and extend duration accordingly
                     new_start = dtstart_val - pad
-                    copied_event["DTSTART"] = new_start
+                    # Replace DTSTART using icalendar's type-aware add()
+                    copied_event.pop("DTSTART", None)
+                    copied_event.add("dtstart", new_start)
                     # Extend duration safely: if no duration yet, start with pad
                     existing_duration = getattr(copied_event, "duration", None)
                     if existing_duration is not None:
