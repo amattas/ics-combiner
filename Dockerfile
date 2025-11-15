@@ -22,4 +22,3 @@ ENV PORT=8080
 EXPOSE 8080
 
 CMD ["uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8080", "--loop", "uvloop", "--http", "httptools", "--log-level", "warning"]
-

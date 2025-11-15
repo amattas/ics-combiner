@@ -50,4 +50,3 @@ jobs:
         run: |
           pip-audit -s
         continue-on-error: true
-

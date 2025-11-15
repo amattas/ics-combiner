@@ -4,8 +4,7 @@ import os
 import json
 import logging
 import time
-from typing import Any, Optional, Dict, Callable, TypeVar
-from functools import wraps
+from typing import Any, Optional, Dict, TypeVar
 from dataclasses import dataclass, field
 import redis
 from redis import Redis, ConnectionPool, RedisError
@@ -14,7 +13,7 @@ import ssl  # noqa: F401  # kept for compatibility if SSL kwargs are extended
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -53,15 +52,15 @@ class CacheStats:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'errors': self.errors,
-            'total_requests': self.total_requests,
-            'hit_rate': self.hit_rate,
-            'miss_rate': self.miss_rate,
-            'avg_hit_time_ms': self.avg_hit_time,
-            'avg_miss_time_ms': self.avg_miss_time,
-            'uptime_seconds': time.time() - self.last_reset
+            "hits": self.hits,
+            "misses": self.misses,
+            "errors": self.errors,
+            "total_requests": self.total_requests,
+            "hit_rate": self.hit_rate,
+            "miss_rate": self.miss_rate,
+            "avg_hit_time_ms": self.avg_hit_time,
+            "avg_miss_time_ms": self.avg_miss_time,
+            "uptime_seconds": time.time() - self.last_reset,
         }
 
     def reset(self):
@@ -91,36 +90,36 @@ class RedisCache:
         port: Optional[int] = None,
         password: Optional[str] = None,
         use_ssl: bool = True,
-        ssl_cert_reqs: str = 'required',
+        ssl_cert_reqs: str = "required",
         max_connections: int = 50,
         connection_timeout: int = 5,
         socket_timeout: int = 5,
         retry_on_timeout: bool = True,
-        health_check_interval: int = 30
+        health_check_interval: int = 30,
     ):
-        self.host = host or os.getenv('REDIS_HOST')
-        self.port = int(port or os.getenv('REDIS_SSL_PORT', '6380'))
-        self.password = password or os.getenv('REDIS_KEY')
+        self.host = host or os.getenv("REDIS_HOST")
+        self.port = int(port or os.getenv("REDIS_SSL_PORT", "6380"))
+        self.password = password or os.getenv("REDIS_KEY")
         self.use_ssl = use_ssl
 
         if not self.host:
             raise ValueError("Redis host is required (set REDIS_HOST env var)")
 
         pool_kwargs = {
-            'host': self.host,
-            'port': self.port,
-            'password': self.password,
-            'max_connections': max_connections,
-            'connection_class': SSLConnection if use_ssl else redis.Connection,
-            'socket_connect_timeout': connection_timeout,
-            'socket_timeout': socket_timeout,
-            'retry_on_timeout': retry_on_timeout,
-            'health_check_interval': health_check_interval,
+            "host": self.host,
+            "port": self.port,
+            "password": self.password,
+            "max_connections": max_connections,
+            "connection_class": SSLConnection if use_ssl else redis.Connection,
+            "socket_connect_timeout": connection_timeout,
+            "socket_timeout": socket_timeout,
+            "retry_on_timeout": retry_on_timeout,
+            "health_check_interval": health_check_interval,
         }
 
         if use_ssl:
-            pool_kwargs['ssl_cert_reqs'] = ssl_cert_reqs
-            pool_kwargs['ssl_ca_certs'] = None
+            pool_kwargs["ssl_cert_reqs"] = ssl_cert_reqs
+            pool_kwargs["ssl_ca_certs"] = None
 
         self.pool = ConnectionPool(**pool_kwargs)
         self.client: Optional[Redis] = None
@@ -133,7 +132,9 @@ class RedisCache:
             self.client = Redis(connection_pool=self.pool)
             self.client.ping()
             self._connected = True
-            logger.info(f"Connected to Redis at {self.host}:{self.port} (SSL: {self.use_ssl})")
+            logger.info(
+                f"Connected to Redis at {self.host}:{self.port} (SSL: {self.use_ssl})"
+            )
             return True
         except (RedisError, Exception) as e:
             logger.error(f"Failed to connect to Redis: {e}")
@@ -141,7 +142,7 @@ class RedisCache:
             return False
 
     @classmethod
-    def from_env(cls) -> Optional['RedisCache']:
+    def from_env(cls) -> Optional["RedisCache"]:
         try:
             return cls()
         except (ValueError, RedisError) as e:
@@ -171,7 +172,7 @@ class RedisCache:
             if data is not None:
                 self.stats.hits += 1
                 self.stats.hit_time_sum += elapsed
-                return json.loads(data.decode('utf-8'))
+                return json.loads(data.decode("utf-8"))
             else:
                 self.stats.misses += 1
                 self.stats.miss_time_sum += elapsed
@@ -185,8 +186,8 @@ class RedisCache:
         if not self.is_connected():
             return False
         try:
-            serialized = json.dumps(value, default=str).encode('utf-8')
-            kwargs = {'ex': ttl} if ttl is not None else {}
+            serialized = json.dumps(value, default=str).encode("utf-8")
+            kwargs = {"ex": ttl} if ttl is not None else {}
             result = self.client.set(key, serialized, **kwargs)
             return bool(result)
         except (RedisError, Exception) as e:
@@ -210,15 +211,18 @@ def _get_cache_ttl(env_var: str, default: int) -> int:
         try:
             value = int(env_value)
             if value < 0:
-                logger.warning(f"Invalid negative TTL for CACHE_TTL_{env_var}: {value}, using default: {default}")
+                logger.warning(
+                    f"Invalid negative TTL for CACHE_TTL_{env_var}: {value}, using default: {default}"
+                )
                 return default
             return value
         except ValueError:
-            logger.warning(f"Invalid TTL value for CACHE_TTL_{env_var}: {env_value}, using default: {default}")
+            logger.warning(
+                f"Invalid TTL value for CACHE_TTL_{env_var}: {env_value}, using default: {default}"
+            )
     return default
 
 
 class CacheTTL:
     # Default TTL for ICS source caching
     ICS_SOURCE_DEFAULT = _get_cache_ttl("ICS_SOURCE_DEFAULT", 600)
-

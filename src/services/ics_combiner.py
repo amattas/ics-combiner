@@ -21,7 +21,7 @@ class ICSCombiner:
 
     @staticmethod
     def _create_uid(input_string: str) -> str:
-        string_bytes = input_string.encode('utf-8')
+        string_bytes = input_string.encode("utf-8")
         hashed_bytes = hashlib.sha1(string_bytes).digest()
         guid = uuid.uuid5(uuid.NAMESPACE_DNS, hashed_bytes.hex())
         return str(guid)
@@ -32,7 +32,9 @@ class ICSCombiner:
 
     @staticmethod
     def _guid_regex():
-        return re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+        return re.compile(
+            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        )
 
     @staticmethod
     def load_sources_from_env() -> Tuple[List[Dict[str, Any]], str, int]:
@@ -47,7 +49,9 @@ class ICSCombiner:
             raise ValueError("ICS_SOURCES is not valid JSON") from err
 
         name = os.getenv("ICS_NAME") or os.getenv("CalendarName") or "Combined Calendar"
-        days_history = int(os.getenv("ICS_DAYS_HISTORY") or os.getenv("CalendarDaysHistory") or 0)
+        days_history = int(
+            os.getenv("ICS_DAYS_HISTORY") or os.getenv("CalendarDaysHistory") or 0
+        )
         return calendars, name, days_history
 
     def _get_source_ttl(self, source: Dict[str, Any]) -> int:
@@ -96,8 +100,14 @@ class ICSCombiner:
 
         return ics_text
 
-    def combine(self, calendars: List[Dict[str, Any]], name: str, days_history: int,
-                show: Optional[List[int]] = None, hide: Optional[List[int]] = None) -> bytes:
+    def combine(
+        self,
+        calendars: List[Dict[str, Any]],
+        name: str,
+        days_history: int,
+        show: Optional[List[int]] = None,
+        hide: Optional[List[int]] = None,
+    ) -> bytes:
         today = self._today_utc_date()
 
         combined_cal = Calendar()
@@ -109,7 +119,7 @@ class ICSCombiner:
         guid_re = self._guid_regex()
 
         def should_include(cal: Dict[str, Any]) -> bool:
-            cid = cal.get('Id')
+            cid = cal.get("Id")
             if show is not None and cid not in show:
                 return False
             if hide is not None and cid in hide:
@@ -131,7 +141,9 @@ class ICSCombiner:
             try:
                 ical = Calendar.from_ical(ics_text)
             except Exception as err:
-                logger.error(f"Unable to parse calendar with id {calendar.get('Id')}: {err}")
+                logger.error(
+                    f"Unable to parse calendar with id {calendar.get('Id')}: {err}"
+                )
                 continue
 
             # Copy timezone definitions to combined calendar
@@ -144,8 +156,13 @@ class ICSCombiner:
                 # Only show configured historical events
                 if end and days_history:
                     dt_val = end.dt
-                    event_date = dt_val.date() if isinstance(dt_val, datetime) else dt_val
-                    if event_date < today - timedelta(days=days_history) and "RRULE" not in component:
+                    event_date = (
+                        dt_val.date() if isinstance(dt_val, datetime) else dt_val
+                    )
+                    if (
+                        event_date < today - timedelta(days=days_history)
+                        and "RRULE" not in component
+                    ):
                         continue
 
                 copied_event = Event()
@@ -157,7 +174,9 @@ class ICSCombiner:
                         copied_event.add(key, value)
 
                 # Set duration if specified
-                if calendar.get("Duration") is not None and isinstance(copied_event.DTSTART, datetime):
+                if calendar.get("Duration") is not None and isinstance(
+                    copied_event.DTSTART, datetime
+                ):
                     copied_event.DURATION = timedelta(minutes=calendar.get("Duration"))
                 # If there is no duration or end time set appropriately
                 elif copied_event.DTEND is None and copied_event.DURATION is None:
@@ -170,21 +189,33 @@ class ICSCombiner:
                         continue
 
                 # Add padding
-                if calendar.get("PadStartMinutes") is not None and isinstance(copied_event.DTSTART, datetime):
-                    copied_event.DTSTART = copied_event.DTSTART - timedelta(minutes=calendar.get("PadStartMinutes"))
-                    copied_event.DURATION = copied_event.duration + timedelta(minutes=calendar.get("PadStartMinutes"))
+                if calendar.get("PadStartMinutes") is not None and isinstance(
+                    copied_event.DTSTART, datetime
+                ):
+                    copied_event.DTSTART = copied_event.DTSTART - timedelta(
+                        minutes=calendar.get("PadStartMinutes")
+                    )
+                    copied_event.DURATION = copied_event.duration + timedelta(
+                        minutes=calendar.get("PadStartMinutes")
+                    )
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
-                    copied_event['SUMMARY'] = f"{calendar.get('Prefix')}: {copied_event['SUMMARY']}"
+                    copied_event["SUMMARY"] = (
+                        f"{calendar.get('Prefix')}: {copied_event['SUMMARY']}"
+                    )
 
                 # Update UID to a unique value if specified
-                if calendar.get("MakeUnique") is not None and calendar.get("MakeUnique"):
-                    copied_event['UID'] = self._create_uid(f"{calendar.get('Id')}-{copied_event['UID']}")
+                if calendar.get("MakeUnique") is not None and calendar.get(
+                    "MakeUnique"
+                ):
+                    copied_event["UID"] = self._create_uid(
+                        f"{calendar.get('Id')}-{copied_event['UID']}"
+                    )
                 else:
                     # Ensure UID is a GUID for Outlook compatibility
-                    if not guid_re.match(copied_event['UID']):
-                        copied_event['UID'] = self._create_uid(f"{copied_event['UID']}")
+                    if not guid_re.match(copied_event["UID"]):
+                        copied_event["UID"] = self._create_uid(f"{copied_event['UID']}")
 
                 # Remove Organizer
                 copied_event.pop("ORGANIZER", None)
@@ -192,15 +223,21 @@ class ICSCombiner:
                 # Remove empty lines from the description
                 if copied_event.get("DESCRIPTION"):
                     try:
-                        desc_str = copied_event.decoded("DESCRIPTION").decode("utf-8", errors="ignore")
+                        desc_str = copied_event.decoded("DESCRIPTION").decode(
+                            "utf-8", errors="ignore"
+                        )
                     except Exception:
                         desc_str = str(copied_event.get("DESCRIPTION"))
-                    desc_str = "\n".join(line for line in desc_str.splitlines() if line.strip())
+                    desc_str = "\n".join(
+                        line for line in desc_str.splitlines() if line.strip()
+                    )
                     copied_event["DESCRIPTION"] = desc_str.strip()
 
                 # De-duplicate or add immediately
-                if calendar.get("FilterDuplicates") is not None and calendar.get("FilterDuplicates"):
-                    temp_cal[copied_event['UID']] = copied_event
+                if calendar.get("FilterDuplicates") is not None and calendar.get(
+                    "FilterDuplicates"
+                ):
+                    temp_cal[copied_event["UID"]] = copied_event
                 else:
                     combined_cal.add_component(copied_event)
 

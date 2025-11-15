@@ -9,10 +9,10 @@ import sys
 import hashlib
 import asyncio
 import logging
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import JSONResponse, Response, PlainTextResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 
@@ -20,13 +20,15 @@ from .services.cache import RedisCache
 from .services.ics_combiner import ICSCombiner
 
 # Load environment variables
-load_dotenv('.env.local')
-load_dotenv('.env')
+load_dotenv(".env.local")
+load_dotenv(".env")
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG if os.getenv('DEBUG', 'false').lower() == 'true' else logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=(
+        logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
+    ),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -51,7 +53,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, private"
+        )
         response.headers["Content-Security-Policy"] = "default-src 'none'"
 
         # Hide server headers
@@ -65,7 +69,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 def create_app() -> FastAPI:
     # Validate API key characters
     if api_key and not api_key.replace("-", "").replace("_", "").isalnum():
-        logger.error("API key contains invalid characters. Use only alphanumeric, dash, and underscore.")
+        logger.error(
+            "API key contains invalid characters. Use only alphanumeric, dash, and underscore."
+        )
         sys.exit(1)
 
     if api_key and len(api_key) < 16:
@@ -99,8 +105,12 @@ def create_app() -> FastAPI:
         @app.get(f"/app/{api_key}/{api_hash}/ics/combined")
         async def combined(
             request: Request,
-            show: Optional[str] = Query(default=None, description="Comma-separated IDs to include"),
-            hide: Optional[str] = Query(default=None, description="Comma-separated IDs to exclude"),
+            show: Optional[str] = Query(
+                default=None, description="Comma-separated IDs to include"
+            ),
+            hide: Optional[str] = Query(
+                default=None, description="Comma-separated IDs to exclude"
+            ),
         ) -> Response:
             ensure_services_initialized()
 
@@ -113,15 +123,22 @@ def create_app() -> FastAPI:
             show_ids = [int(x) for x in show.split(",")] if show else None
             hide_ids = [int(x) for x in hide.split(",")] if hide else None
             if show_ids is not None and hide_ids is not None:
-                return JSONResponse({"error": "Invalid show/hide params"}, status_code=400)
+                return JSONResponse(
+                    {"error": "Invalid show/hide params"}, status_code=400
+                )
 
-            ical_bytes = combiner.combine(calendars, name, days_history, show=show_ids, hide=hide_ids)
+            ical_bytes = combiner.combine(
+                calendars, name, days_history, show=show_ids, hide=hide_ids
+            )
             return Response(content=ical_bytes, media_type="text/calendar")
 
         # Anti‑brute‑force 404 handler
         @app.exception_handler(404)
         async def not_found(request: Request, exc: HTTPException):
-            if request.url.path.startswith("/app/") and request.url.path != "/app/health":
+            if (
+                request.url.path.startswith("/app/")
+                and request.url.path != "/app/health"
+            ):
                 logger.warning(
                     f"Invalid authentication path attempted: {request.url.path} from {request.client.host if request.client else 'unknown'}"
                 )
@@ -129,7 +146,9 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
     else:
-        logger.warning("ICS_API_KEY not set - running in UNAUTHENTICATED mode (not recommended)")
+        logger.warning(
+            "ICS_API_KEY not set - running in UNAUTHENTICATED mode (not recommended)"
+        )
 
         @app.get("/ics/combined")
         async def combined_noauth(
@@ -149,9 +168,13 @@ def create_app() -> FastAPI:
             show_ids = [int(x) for x in show.split(",")] if show else None
             hide_ids = [int(x) for x in hide.split(",")] if hide else None
             if show_ids is not None and hide_ids is not None:
-                return JSONResponse({"error": "Invalid show/hide params"}, status_code=400)
+                return JSONResponse(
+                    {"error": "Invalid show/hide params"}, status_code=400
+                )
 
-            ical_bytes = combiner.combine(calendars, name, days_history, show=show_ids, hide=hide_ids)
+            ical_bytes = combiner.combine(
+                calendars, name, days_history, show=show_ids, hide=hide_ids
+            )
             return Response(content=ical_bytes, media_type="text/calendar")
 
     return app

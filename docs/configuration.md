@@ -35,4 +35,3 @@ For Redis‑backed caching of source ICS feeds:
 - `CACHE_TTL_ICS_SOURCE_<ID>` – Per‑calendar TTL override (seconds) for source ID
 
 When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.
-

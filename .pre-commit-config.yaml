@@ -26,4 +26,3 @@ repos:
         args: ["-r", "src"]
         pass_filenames: false
         additional_dependencies: []
-
