@@ -294,16 +294,28 @@ class ICSCombiner:
                     dtstart_val, datetime
                 ):
                     pad = timedelta(minutes=calendar.get("PadStartMinutes"))
-                    # Shift start earlier and extend duration accordingly
+                    # Shift start earlier
                     new_start = dtstart_val - pad
                     # Replace DTSTART using icalendar's type-aware add()
                     copied_event.pop("DTSTART", None)
                     copied_event.add("dtstart", new_start)
-                    # Extend duration safely: if no duration yet, start with pad
+
+                    # Align end encoding with original combcal behavior:
+                    # - If the event already had an explicit DURATION (either from
+                    #   a Duration override or fallback), extend that duration.
+                    # - If the event only had DTEND, keep DTEND and do NOT add a
+                    #   DURATION line, so end encoding stays as DTEND.
+                    has_dtend = copied_event.get("DTEND") is not None
+                    has_duration_prop = copied_event.get("DURATION") is not None
+
                     existing_duration = getattr(copied_event, "duration", None)
-                    if existing_duration is not None:
+                    if has_duration_prop and existing_duration is not None:
+                        # Extend existing duration by the pad amount
                         copied_event.DURATION = existing_duration + pad
-                    else:
+                    elif not has_duration_prop and not has_dtend:
+                        # No DTEND or DURATION at all (very rare here since we
+                        # normally set a fallback earlier) – treat pad as the
+                        # whole duration to avoid zero-length events.
                         copied_event.DURATION = pad
 
                 # Add prefix
