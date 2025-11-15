@@ -289,34 +289,25 @@ class ICSCombiner:
                             # Skip if DTSTART is not recognisable
                             continue
 
-                # Add padding
+                # Add padding (arrival time) exactly as in the original combcal:
+                # - Shift DTSTART earlier by PadStartMinutes.
+                # - Set DURATION based on the event's effective duration plus the pad.
+                #   The effective duration comes from either an existing DURATION
+                #   property or the DTEND/DTSTART difference.
                 if calendar.get("PadStartMinutes") is not None and isinstance(
                     dtstart_val, datetime
                 ):
                     pad = timedelta(minutes=calendar.get("PadStartMinutes"))
+
                     # Shift start earlier
                     new_start = dtstart_val - pad
-                    # Replace DTSTART using icalendar's type-aware add()
                     copied_event.pop("DTSTART", None)
                     copied_event.add("dtstart", new_start)
 
-                    # Align end encoding with original combcal behavior:
-                    # - If the event already had an explicit DURATION (either from
-                    #   a Duration override or fallback), extend that duration.
-                    # - If the event only had DTEND, keep DTEND and do NOT add a
-                    #   DURATION line, so end encoding stays as DTEND.
-                    has_dtend = copied_event.get("DTEND") is not None
-                    has_duration_prop = copied_event.get("DURATION") is not None
-
+                    # Use icalendar's derived duration (from DURATION or DTEND/DTSTART)
                     existing_duration = getattr(copied_event, "duration", None)
-                    if has_duration_prop and existing_duration is not None:
-                        # Extend existing duration by the pad amount
+                    if existing_duration is not None:
                         copied_event.DURATION = existing_duration + pad
-                    elif not has_duration_prop and not has_dtend:
-                        # No DTEND or DURATION at all (very rare here since we
-                        # normally set a fallback earlier) – treat pad as the
-                        # whole duration to avoid zero-length events.
-                        copied_event.DURATION = pad
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
