@@ -3,27 +3,5 @@
     "version": "latest",
     "title": "latest",
     "aliases": []
-  },
-  {
-    "version": "dev-62f1a0f",
-    "title": "dev-62f1a0f",
-    "aliases": []
-  },
-  {
-    "version": "dev-44c671e",
-    "title": "dev-44c671e",
-    "aliases": []
-  },
-  {
-    "version": "dev-3d5e5eb",
-    "title": "dev-3d5e5eb",
-    "aliases": [
-      "dev"
-    ]
-  },
-  {
-    "version": "dev-f135d2e",
-    "title": "dev-f135d2e",
-    "aliases": []
   }
 ]
