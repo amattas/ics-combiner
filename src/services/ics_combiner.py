@@ -269,42 +269,95 @@ class ICSCombiner:
                     copied_event.pop("DTSTART", None)
                     copied_event.add("dtstart", dtstart_val)
 
-                # Use icalendar's attribute access for DTSTART/DTEND/DURATION so that
-                # DTEND/DURATION behaviour matches the original combcal implementation.
-                dtstart_attr = getattr(copied_event, "DTSTART", None)
-                if dtstart_attr is None:
+                # At this point dtstart_val should be a datetime or date. If not, skip.
+                if not isinstance(dtstart_val, (datetime, date)):
                     logger.warning(
-                        "Skipping event with invalid DTSTART (source_id=%s, prefix=%s, summary=%s)",
+                        "Skipping event with invalid DTSTART type (source_id=%s, prefix=%s, type=%s, summary=%s)",
                         calendar.get("Id"),
                         calendar.get("Prefix"),
+                        type(dtstart_val),
                         copied_event.get("SUMMARY"),
                     )
                     continue
 
-                # Set duration if specified (combcal semantics)
+                # Set duration if specified (combcal semantics) – for timed events only.
                 if calendar.get("Duration") is not None and isinstance(
-                    dtstart_attr, datetime
+                    dtstart_val, datetime
                 ):
-                    copied_event.DURATION = timedelta(minutes=calendar.get("Duration"))
-                # If there is no duration or end time set, add defaults (combcal semantics)
-                elif copied_event.DTEND is None and copied_event.DURATION is None:
-                    if isinstance(dtstart_attr, datetime):
-                        copied_event.DURATION = timedelta(minutes=5)
-                    elif isinstance(dtstart_attr, date):
-                        copied_event.DURATION = timedelta(days=1)
-                    else:
-                        # Skip if DTSTART is not recognisable
-                        continue
+                    # Override any existing duration and remove DTEND so that the
+                    # effective length is driven exclusively by DURATION, matching
+                    # the original combcal behaviour and what icalendar >= 6 emits.
+                    copied_event.pop("DURATION", None)
+                    copied_event.pop("DTEND", None)
+                    copied_event.add(
+                        "DURATION", timedelta(minutes=calendar.get("Duration"))
+                    )
+                else:
+                    has_dtend = copied_event.get("DTEND") is not None
+                    has_duration = copied_event.get("DURATION") is not None
 
-                # Add padding (arrival time) using the original combcal rules:
+                    # If there is no duration or end time, add sensible defaults
+                    # (5 minutes for timed events, 1 day for all‑day events).
+                    if not has_dtend and not has_duration:
+                        if isinstance(dtstart_val, datetime):
+                            copied_event.add("DURATION", timedelta(minutes=5))
+                        elif isinstance(dtstart_val, date):
+                            copied_event.add("DURATION", timedelta(days=1))
+                        else:
+                            # Should not occur given the type check above, but keep guard.
+                            continue
+
+                # Add padding (arrival time) using the original combcal rules,
+                # but in a way that works across icalendar versions:
                 # - Shift DTSTART earlier by PadStartMinutes.
                 # - Set DURATION based on the event's effective duration plus the pad.
-                if calendar.get("PadStartMinutes") is not None and isinstance(
-                    copied_event.DTSTART, datetime
-                ):
-                    pad = timedelta(minutes=calendar.get("PadStartMinutes"))
-                    copied_event.DTSTART = copied_event.DTSTART - pad
-                    copied_event.DURATION = copied_event.duration + pad
+                pad_minutes = calendar.get("PadStartMinutes")
+                if pad_minutes is not None and isinstance(dtstart_val, datetime):
+                    pad = timedelta(minutes=pad_minutes)
+
+                    # Compute original duration. If the event already had a
+                    # DURATION, use that. Otherwise derive it from DTEND and the
+                    # *original* DTSTART.
+                    dur_prop = copied_event.get("DURATION")
+                    dtend_prop = copied_event.get("DTEND")
+
+                    original_duration: Optional[timedelta] = None
+                    if dur_prop is not None:
+                        try:
+                            original_duration = copied_event.decoded("DURATION")
+                        except Exception:
+                            val = getattr(dur_prop, "dt", None)
+                            if isinstance(val, timedelta):
+                                original_duration = val
+                    elif dtend_prop is not None:
+                        dtend_val = getattr(dtend_prop, "dt", dtend_prop)
+                        if isinstance(dtend_val, datetime):
+                            original_duration = dtend_val - dtstart_val
+
+                    if original_duration is not None:
+                        # Shift start earlier by the pad.
+                        new_start = dtstart_val - pad
+                        copied_event.pop("DTSTART", None)
+                        copied_event.add("DTSTART", new_start)
+
+                        # Match combcal's duration semantics:
+                        # - If the event *only* had DURATION originally, the new
+                        #   total duration is original_duration + pad.
+                        # - If it had an explicit DTEND (no DURATION), its
+                        #   combcal behaviour is: duration becomes
+                        #   (original_duration + pad) and then another pad is
+                        #   added, i.e. original_duration + 2*pad.
+                        if dur_prop is not None:
+                            new_duration = original_duration + pad
+                        elif dtend_prop is not None:
+                            new_duration = original_duration + (pad * 2)
+                        else:
+                            new_duration = original_duration
+
+                        # Use DURATION exclusively to represent the new length.
+                        copied_event.pop("DURATION", None)
+                        copied_event.pop("DTEND", None)
+                        copied_event.add("DURATION", new_duration)
 
                 # Add prefix
                 if calendar.get("Prefix") is not None:
