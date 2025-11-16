@@ -120,14 +120,25 @@ def create_app() -> FastAPI:
             try:
                 calendars, name, days_history = ICSCombiner.load_sources_from_env()
             except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
+                logger.info(
+                    "Error loading ICS sources for authenticated request from %s: %s",
+                    request.client.host if request.client else "unknown",
+                    e,
+                )
+                # Let the reverse proxy render a 500 page
+                return Response(status_code=500)
 
             show_ids = [int(x) for x in show.split(",")] if show else None
             hide_ids = [int(x) for x in hide.split(",")] if hide else None
             if show_ids is not None and hide_ids is not None:
-                return JSONResponse(
-                    {"error": "Invalid show/hide params"}, status_code=400
+                logger.info(
+                    "Invalid show/hide params for authenticated request from %s: show=%s hide=%s",
+                    request.client.host if request.client else "unknown",
+                    show,
+                    hide,
                 )
+                # Let the reverse proxy render a 400 page
+                return Response(status_code=400)
 
             ical_bytes = combiner.combine(
                 calendars, name, days_history, show=show_ids, hide=hide_ids
@@ -145,7 +156,9 @@ def create_app() -> FastAPI:
                     f"Invalid authentication path attempted: {request.url.path} from {request.client.host if request.client else 'unknown'}"
                 )
                 await asyncio.sleep(30)
-            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+            # Return an empty 404 so any upstream (e.g. reverse proxy)
+            # can render its own 404 page.
+            return Response(status_code=404)
 
     else:
         logger.warning(
@@ -154,6 +167,7 @@ def create_app() -> FastAPI:
 
         @app.get("/ics/combined")
         async def combined_noauth(
+            request: Request,
             show: Optional[str] = Query(default=None),
             hide: Optional[str] = Query(default=None),
         ) -> Response:
@@ -165,14 +179,25 @@ def create_app() -> FastAPI:
             try:
                 calendars, name, days_history = ICSCombiner.load_sources_from_env()
             except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
+                logger.info(
+                    "Error loading ICS sources for unauthenticated request from %s: %s",
+                    request.client.host if request.client else "unknown",
+                    e,
+                )
+                # Let the reverse proxy render a 500 page
+                return Response(status_code=500)
 
             show_ids = [int(x) for x in show.split(",")] if show else None
             hide_ids = [int(x) for x in hide.split(",")] if hide else None
             if show_ids is not None and hide_ids is not None:
-                return JSONResponse(
-                    {"error": "Invalid show/hide params"}, status_code=400
+                logger.info(
+                    "Invalid show/hide params for unauthenticated request from %s: show=%s hide=%s",
+                    request.client.host if request.client else "unknown",
+                    show,
+                    hide,
                 )
+                # Let the reverse proxy render a 400 page
+                return Response(status_code=400)
 
             ical_bytes = combiner.combine(
                 calendars, name, days_history, show=show_ids, hide=hide_ids
