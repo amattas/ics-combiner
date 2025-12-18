@@ -362,7 +362,7 @@ class ICSCombiner:
                 # Add prefix
                 if calendar.get("Prefix") is not None:
                     copied_event["SUMMARY"] = (
-                        f"{calendar.get('Prefix')}: {copied_event['SUMMARY']}"
+                        f"{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
                     )
 
                 # Update UID to a unique value if specified
