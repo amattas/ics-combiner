@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <circle cx="80" cy="80" r="80" fill="#fff"/>
+
+  <!-- Back calendar (offset upper-right, lighter purple) -->
+  <rect x="52" y="28" width="78" height="72" rx="8" fill="#C4B5FD"/>
+  <rect x="52" y="28" width="78" height="22" rx="8" fill="#A78BFA"/>
+  <!-- Faint date cells peeking out on the right -->
+  <rect x="112" y="58" width="12" height="10" rx="2" fill="#fff" opacity="0.4"/>
+  <rect x="112" y="76" width="12" height="10" rx="2" fill="#fff" opacity="0.4"/>
+
+  <!-- Front calendar (main, bold purple) -->
+  <rect x="30" y="56" width="78" height="72" rx="8" fill="#8B5CF6"/>
+  <rect x="30" y="56" width="78" height="22" rx="8" fill="#7C3AED"/>
+  <!-- Date cells -->
+  <rect x="42" y="86" width="14" height="11" rx="2" fill="#fff"/>
+  <rect x="62" y="86" width="14" height="11" rx="2" fill="#fff"/>
+  <rect x="82" y="86" width="14" height="11" rx="2" fill="#fff"/>
+  <rect x="42" y="104" width="14" height="11" rx="2" fill="#fff"/>
+  <rect x="62" y="104" width="14" height="11" rx="2" fill="#fff"/>
+</svg>
