@@ -1,4 +1,8 @@
-ICS Combiner (FastAPI)
+<p align="center">
+  <img src="docs/logo.svg" width="120" alt="ICS Combiner logo">
+</p>
+
+# ICS Combiner (FastAPI)
 
 This service combines multiple iCalendar (ICS) feeds into a single calendar, with optional per‑calendar transforms. It runs as a FastAPI app with the same path‑based authentication scheme used by the MCP servers, and supports Redis caching for source ICS files with configurable refresh TTLs.
 
