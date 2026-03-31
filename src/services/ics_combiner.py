@@ -143,11 +143,17 @@ class ICSCombiner:
         lkg_key = f"{cache_key}:lkg"
         ttl = self._get_source_ttl(source)
 
-        # Try cache
+        # Try cache (empty string = negative cache from a prior failure)
         if self.cache and self.cache.is_connected():
             cached = self.cache.get(cache_key)
-            if isinstance(cached, str):
+            if isinstance(cached, str) and cached:
                 return self._normalize_ics_text(cached), False
+            if isinstance(cached, str) and not cached:
+                # Negative cache hit — don't retry upstream, serve LKG if available
+                lkg = self.cache.get(lkg_key)
+                if isinstance(lkg, str):
+                    return self._normalize_ics_text(lkg), True
+                return None, False
 
         # Fetch from network
         try:
@@ -155,8 +161,11 @@ class ICSCombiner:
             resp.raise_for_status()
         except requests.RequestException as err:
             logger.error(f"Failed to fetch ICS for source {source.get('Id')}: {err}")
-            # Fall back to last-known-good cache
             if self.cache and self.cache.is_connected():
+                # Set a negative cache entry so we don't keep retrying on every
+                # request — back off for the normal TTL period.
+                self.cache.set(cache_key, "", ttl=ttl)
+                # Fall back to last-known-good cache
                 lkg = self.cache.get(lkg_key)
                 if isinstance(lkg, str):
                     logger.info(
