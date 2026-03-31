@@ -226,3 +226,5 @@ def _get_cache_ttl(env_var: str, default: int) -> int:
 class CacheTTL:
     # Default TTL for ICS source caching
     ICS_SOURCE_DEFAULT = _get_cache_ttl("ICS_SOURCE_DEFAULT", 600)
+    # Last-known-good fallback TTL (24 hours)
+    ICS_SOURCE_LKG = _get_cache_ttl("ICS_SOURCE_LKG", 86400)
