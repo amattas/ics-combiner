@@ -129,20 +129,31 @@ class ICSCombiner:
         url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest() if url else "no_url"
         return f"ics:source:{sid}:{url_hash}"
 
-    def fetch_source_ics(self, source: Dict[str, Any]) -> Optional[str]:
-        """Fetch a single ICS source, using Redis cache if available."""
+    def fetch_source_ics(self, source: Dict[str, Any]) -> Tuple[Optional[str], bool]:
+        """Fetch a single ICS source, using Redis cache if available.
+
+        Returns (ics_text, is_stale) where is_stale indicates the data came
+        from a last-known-good fallback after a fetch failure.
+        """
         if not source.get("Url"):
             logger.warning(f"Source missing Url: {source}")
-            return None
+            return None, False
 
         cache_key = self._cache_key_for_source(source)
+        lkg_key = f"{cache_key}:lkg"
         ttl = self._get_source_ttl(source)
 
-        # Try cache
+        # Try cache (empty string = negative cache from a prior failure)
         if self.cache and self.cache.is_connected():
             cached = self.cache.get(cache_key)
-            if isinstance(cached, str):
-                return self._normalize_ics_text(cached)
+            if isinstance(cached, str) and cached:
+                return self._normalize_ics_text(cached), False
+            if isinstance(cached, str) and not cached:
+                # Negative cache hit — don't retry upstream, serve LKG if available
+                lkg = self.cache.get(lkg_key)
+                if isinstance(lkg, str):
+                    return self._normalize_ics_text(lkg), True
+                return None, False
 
         # Fetch from network
         try:
@@ -150,16 +161,29 @@ class ICSCombiner:
             resp.raise_for_status()
         except requests.RequestException as err:
             logger.error(f"Failed to fetch ICS for source {source.get('Id')}: {err}")
-            return None
+            if self.cache and self.cache.is_connected():
+                # Set a negative cache entry so we don't keep retrying on every
+                # request — back off for the normal TTL period.
+                self.cache.set(cache_key, "", ttl=ttl)
+                # Fall back to last-known-good cache
+                lkg = self.cache.get(lkg_key)
+                if isinstance(lkg, str):
+                    logger.info(
+                        f"Using last-known-good cache for source {source.get('Id')}"
+                    )
+                    return self._normalize_ics_text(lkg), True
+            return None, False
 
         ics_text = self._normalize_ics_text(resp.text)
 
         # Store in cache
         if self.cache and self.cache.is_connected():
-            # Store normalized string
+            # Primary cache (controls fetch frequency)
             self.cache.set(cache_key, ics_text, ttl=ttl)
+            # Last-known-good cache (long-lived fallback)
+            self.cache.set(lkg_key, ics_text, ttl=CacheTTL.ICS_SOURCE_LKG)
 
-        return ics_text
+        return ics_text, False
 
     def combine(
         self,
@@ -194,7 +218,7 @@ class ICSCombiner:
             if not should_include(calendar):
                 continue
 
-            ics_text = self.fetch_source_ics(calendar)
+            ics_text, is_stale = self.fetch_source_ics(calendar)
             if not ics_text:
                 # Skip failed sources
                 continue
@@ -359,10 +383,15 @@ class ICSCombiner:
                         copied_event.pop("DTEND", None)
                         copied_event.add("DURATION", new_duration)
 
-                # Add prefix
+                # Add stale indicator and prefix
+                stale_marker = "⚠️ " if is_stale else ""
                 if calendar.get("Prefix") is not None:
                     copied_event["SUMMARY"] = (
-                        f"{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
+                        f"{stale_marker}{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
+                    )
+                elif is_stale:
+                    copied_event["SUMMARY"] = (
+                        f"{stale_marker}{copied_event.get('SUMMARY')}"
                     )
 
                 # Update UID to a unique value if specified
