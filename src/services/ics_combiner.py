@@ -387,10 +387,12 @@ class ICSCombiner:
                 stale_marker = "⚠️ " if is_stale else ""
                 if calendar.get("Prefix") is not None:
                     copied_event["SUMMARY"] = (
-                        f"{stale_marker}{calendar.get('Prefix')}: {copied_event['SUMMARY']}"
+                        f"{stale_marker}{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
                     )
                 elif is_stale:
-                    copied_event["SUMMARY"] = f"{stale_marker}{copied_event['SUMMARY']}"
+                    copied_event["SUMMARY"] = (
+                        f"{stale_marker}{copied_event.get('SUMMARY')}"
+                    )
 
                 # Update UID to a unique value if specified
                 if calendar.get("MakeUnique") is not None and calendar.get(
