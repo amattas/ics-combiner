@@ -1,15 +1,16 @@
 """Redis caching layer for ICS Combiner services (borrowed from MCP servers)"""
 
-import os
 import json
 import logging
-import time
-from typing import Any, Optional, Dict, TypeVar
-from dataclasses import dataclass, field
-import redis
-from redis import Redis, ConnectionPool, RedisError
-from redis.connection import SSLConnection
+import os
 import ssl  # noqa: F401  # kept for compatibility if SSL kwargs are extended
+import time
+from dataclasses import dataclass, field
+from typing import Any, Optional, TypeVar
+
+import redis
+from redis import ConnectionPool, Redis, RedisError
+from redis.connection import SSLConnection
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class CacheStats:
             return 0.0
         return (self.miss_time_sum / self.misses) * 1000
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hits": self.hits,
             "misses": self.misses,
@@ -86,9 +87,9 @@ class CacheConfig:
 class RedisCache:
     def __init__(
         self,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        password: Optional[str] = None,
+        host: str | None = None,
+        port: int | None = None,
+        password: str | None = None,
         use_ssl: bool = True,
         ssl_cert_reqs: str = "required",
         max_connections: int = 50,
@@ -119,10 +120,10 @@ class RedisCache:
 
         if use_ssl:
             pool_kwargs["ssl_cert_reqs"] = ssl_cert_reqs
-            pool_kwargs["ssl_ca_certs"] = None
+            pool_kwargs["ssl_ca_certs"] = os.getenv("REDIS_CA_FILE")
 
         self.pool = ConnectionPool(**pool_kwargs)
-        self.client: Optional[Redis] = None
+        self.client: Redis | None = None
         self.stats = CacheStats()
         self._connected = False
         self._connect()
@@ -182,7 +183,7 @@ class RedisCache:
             self.stats.errors += 1
             return default
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         if not self.is_connected():
             return False
         try:
