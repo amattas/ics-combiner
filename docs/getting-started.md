@@ -29,6 +29,20 @@ This guide walks through running the ICS Combiner service locally and with Docke
    curl http://localhost:8080/app/health
    ```
 
+## Run Tests
+
+1. Install development dependencies:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+2. Run the unit tests:
+
+   ```bash
+   python -m pytest
+   ```
+
 ## Run with Docker
 
 1. Build the image:

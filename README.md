@@ -22,6 +22,8 @@ Environment
 - ICS_NAME: Combined calendar display name
 - ICS_DAYS_HISTORY: Days of history to include (int)
 - CACHE_TTL_ICS_SOURCE_DEFAULT: Default TTL (seconds) for source ICS caching
+- CACHE_TTL_ICS_SOURCE_LKG: Last-known-good fallback TTL (seconds, minimum 1)
+- CACHE_TTL_ICS_SOURCE_FAILURE_BACKOFF: Backoff TTL (seconds) after a source fetch failure (minimum 1)
 
 Calendar source config
 Each object in `ICS_SOURCES` may include the following keys (compatible with calcomb):
@@ -33,6 +35,7 @@ Each object in `ICS_SOURCES` may include the following keys (compatible with cal
 - MakeUnique (optional, bool): force UID uniqueness per calendar
 - FilterDuplicates (optional, bool): de‑duplicate events by UID
 - RefreshSeconds (optional, int): cache TTL for this calendar’s source ICS
+  - Set to 0 to bypass the fresh source cache while still using failure backoff and last-known-good fallback cache when Redis is configured.
 
 Endpoints
 - GET /app/health — health status (no auth)
@@ -42,6 +45,10 @@ Run locally
 1) Copy `.env.example` to `.env.local` and set values
 2) `pip install -r requirements.txt`
 3) `python -m uvicorn src.server:app --host 0.0.0.0 --port 8080`
+
+Run tests
+- `pip install -r requirements-dev.txt`
+- `python -m pytest`
 
 Docker
 - Build: `docker build -t ics-combiner .`
