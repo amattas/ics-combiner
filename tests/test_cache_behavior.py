@@ -4,7 +4,6 @@ from icalendar import Calendar
 from src.services.cache import CacheStats, CacheTTL, RedisCache, _get_cache_ttl
 from src.services.ics_combiner import ICSCombiner
 
-
 VALID_ICS = """BEGIN:VCALENDAR
 VERSION:2.0
 BEGIN:VEVENT
