@@ -513,7 +513,8 @@
 <li><code>MakeUnique</code> (optional, bool): force UID uniqueness per calendar</li>
 <li><code>FilterDuplicates</code> (optional, bool): de‑duplicate events by UID</li>
 <li>
-<p><code>RefreshSeconds</code> (optional, int): cache TTL for this calendar’s source ICS</p>
+<p><code>RefreshSeconds</code> (optional, int): cache TTL for this calendar’s source ICS
+    Set to <code>0</code> to bypass the fresh source cache while still using failure backoff and last-known-good fallback cache when Redis is configured.</p>
 </li>
 <li>
 <p><code>ICS_NAME</code> – Combined calendar display name</p>
@@ -531,6 +532,8 @@
 <li>
 <p><code>CACHE_TTL_ICS_SOURCE_DEFAULT</code> – Default TTL (seconds) for source ICS caching (used when a source does not define <code>RefreshSeconds</code>)</p>
 </li>
+<li><code>CACHE_TTL_ICS_SOURCE_LKG</code> – Last-known-good fallback TTL (seconds; default: <code>86400</code>; minimum: <code>1</code>)</li>
+<li><code>CACHE_TTL_ICS_SOURCE_FAILURE_BACKOFF</code> – Backoff TTL after a source fetch failure (seconds; default: <code>60</code>; minimum: <code>1</code>)</li>
 </ul>
 <p>When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.</p>
 
