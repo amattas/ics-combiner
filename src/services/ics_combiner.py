@@ -14,6 +14,8 @@ from .cache import RedisCache, CacheTTL
 
 logger = logging.getLogger(__name__)
 
+SourceFetchResult = Tuple[Optional[str], bool, Optional[Calendar]]
+
 
 class ICSCombiner:
     def __init__(self, cache: Optional[RedisCache] = None):
@@ -129,31 +131,77 @@ class ICSCombiner:
         url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest() if url else "no_url"
         return f"ics:source:{sid}:{url_hash}"
 
-    def fetch_source_ics(self, source: Dict[str, Any]) -> Tuple[Optional[str], bool]:
-        """Fetch a single ICS source, using Redis cache if available.
+    @staticmethod
+    def _parse_ics_text(ics_text: str) -> Optional[Calendar]:
+        if "BEGIN:VCALENDAR" not in ics_text.upper():
+            return None
 
-        Returns (ics_text, is_stale) where is_stale indicates the data came
-        from a last-known-good fallback after a fetch failure.
+        try:
+            return Calendar.from_ical(ics_text)
+        except Exception:
+            return None
+
+    def _fetch_source_ics(self, source: Dict[str, Any]) -> SourceFetchResult:
+        """Fetch and parse a single ICS source, using Redis cache if available.
+
+        Returns (ics_text, is_stale, parsed_calendar) where is_stale indicates
+        the data came from a last-known-good fallback after a fetch failure.
         """
         if not source.get("Url"):
             logger.warning(f"Source missing Url: {source}")
-            return None, False
+            return None, False, None
 
         cache_key = self._cache_key_for_source(source)
         lkg_key = f"{cache_key}:lkg"
         ttl = self._get_source_ttl(source)
+        failure_backoff_ttl = CacheTTL.ICS_SOURCE_FAILURE_BACKOFF
+
+        def get_lkg_from_cache() -> SourceFetchResult:
+            if not self.cache or not self.cache.is_connected():
+                return None, False, None
+
+            lkg = self.cache.get(lkg_key)
+            if isinstance(lkg, str) and lkg:
+                parsed_lkg = self._parse_ics_text(lkg)
+                if parsed_lkg is not None:
+                    logger.info(
+                        f"Using last-known-good cache for source {source.get('Id')}"
+                    )
+                    return lkg, True, parsed_lkg
+
+                logger.warning(
+                    "Ignoring invalid last-known-good cache for source %s",
+                    source.get("Id"),
+                )
+                self.cache.delete(lkg_key)
+
+            return None, False, None
+
+        def record_failure_and_get_lkg() -> SourceFetchResult:
+            if self.cache and self.cache.is_connected():
+                # Keep failure backoff separate from the source freshness TTL so
+                # no-cache sources do not retry a failing upstream on every request.
+                self.cache.set(cache_key, "", ttl=failure_backoff_ttl)
+                return get_lkg_from_cache()
+
+            return None, False, None
 
         # Try cache (empty string = negative cache from a prior failure)
         if self.cache and self.cache.is_connected():
             cached = self.cache.get(cache_key)
-            if isinstance(cached, str) and cached:
-                return self._normalize_ics_text(cached), False
-            if isinstance(cached, str) and not cached:
-                # Negative cache hit — don't retry upstream, serve LKG if available
-                lkg = self.cache.get(lkg_key)
-                if isinstance(lkg, str):
-                    return self._normalize_ics_text(lkg), True
-                return None, False
+            if isinstance(cached, str):
+                if not cached:
+                    # Negative cache hit — don't retry upstream, serve LKG if available
+                    return get_lkg_from_cache()
+
+                parsed_cached = self._parse_ics_text(cached)
+                if parsed_cached is not None:
+                    return cached, False, parsed_cached
+
+                logger.warning(
+                    "Ignoring invalid cached ICS for source %s", source.get("Id")
+                )
+                self.cache.delete(cache_key)
 
         # Fetch from network
         try:
@@ -161,20 +209,13 @@ class ICSCombiner:
             resp.raise_for_status()
         except requests.RequestException as err:
             logger.error(f"Failed to fetch ICS for source {source.get('Id')}: {err}")
-            if self.cache and self.cache.is_connected():
-                # Set a negative cache entry so we don't keep retrying on every
-                # request — back off for the normal TTL period.
-                self.cache.set(cache_key, "", ttl=ttl)
-                # Fall back to last-known-good cache
-                lkg = self.cache.get(lkg_key)
-                if isinstance(lkg, str):
-                    logger.info(
-                        f"Using last-known-good cache for source {source.get('Id')}"
-                    )
-                    return self._normalize_ics_text(lkg), True
-            return None, False
+            return record_failure_and_get_lkg()
 
         ics_text = self._normalize_ics_text(resp.text)
+        parsed_ics = self._parse_ics_text(ics_text)
+        if parsed_ics is None:
+            logger.error("Fetched invalid ICS for source %s", source.get("Id"))
+            return record_failure_and_get_lkg()
 
         # Store in cache
         if self.cache and self.cache.is_connected():
@@ -183,7 +224,16 @@ class ICSCombiner:
             # Last-known-good cache (long-lived fallback)
             self.cache.set(lkg_key, ics_text, ttl=CacheTTL.ICS_SOURCE_LKG)
 
-        return ics_text, False
+        return ics_text, False, parsed_ics
+
+    def fetch_source_ics(self, source: Dict[str, Any]) -> Tuple[Optional[str], bool]:
+        """Fetch a single ICS source, using Redis cache if available.
+
+        Returns (ics_text, is_stale) where is_stale indicates the data came
+        from a last-known-good fallback after a fetch failure.
+        """
+        ics_text, is_stale, _parsed_calendar = self._fetch_source_ics(source)
+        return ics_text, is_stale
 
     def combine(
         self,
@@ -218,17 +268,9 @@ class ICSCombiner:
             if not should_include(calendar):
                 continue
 
-            ics_text, is_stale = self.fetch_source_ics(calendar)
-            if not ics_text:
+            ics_text, is_stale, ical = self._fetch_source_ics(calendar)
+            if not ics_text or ical is None:
                 # Skip failed sources
-                continue
-
-            try:
-                ical = Calendar.from_ical(ics_text)
-            except Exception as err:
-                logger.error(
-                    f"Unable to parse calendar with id {calendar.get('Id')}: {err}"
-                )
                 continue
 
             # Copy timezone definitions to combined calendar

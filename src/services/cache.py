@@ -187,6 +187,12 @@ class RedisCache:
         if not self.is_connected():
             return False
         try:
+            if ttl is not None and ttl <= 0:
+                # Redis rejects EX/PX values <= 0. Treat non-positive TTLs as
+                # immediate expiration so callers can disable a cache entry.
+                self.client.delete(key)
+                return True
+
             serialized = json.dumps(value, default=str).encode("utf-8")
             kwargs = {"ex": ttl} if ttl is not None else {}
             result = self.client.set(key, serialized, **kwargs)
@@ -206,14 +212,15 @@ class RedisCache:
             return False
 
 
-def _get_cache_ttl(env_var: str, default: int) -> int:
+def _get_cache_ttl(env_var: str, default: int, minimum: int = 0) -> int:
     env_value = os.getenv(f"CACHE_TTL_{env_var}")
     if env_value:
         try:
             value = int(env_value)
-            if value < 0:
+            if value < minimum:
                 logger.warning(
-                    f"Invalid negative TTL for CACHE_TTL_{env_var}: {value}, using default: {default}"
+                    f"Invalid TTL for CACHE_TTL_{env_var}: {value} "
+                    f"(minimum: {minimum}), using default: {default}"
                 )
                 return default
             return value
@@ -228,4 +235,8 @@ class CacheTTL:
     # Default TTL for ICS source caching
     ICS_SOURCE_DEFAULT = _get_cache_ttl("ICS_SOURCE_DEFAULT", 600)
     # Last-known-good fallback TTL (24 hours)
-    ICS_SOURCE_LKG = _get_cache_ttl("ICS_SOURCE_LKG", 86400)
+    ICS_SOURCE_LKG = _get_cache_ttl("ICS_SOURCE_LKG", 86400, minimum=1)
+    # Backoff TTL for failed source fetches
+    ICS_SOURCE_FAILURE_BACKOFF = _get_cache_ttl(
+        "ICS_SOURCE_FAILURE_BACKOFF", 60, minimum=1
+    )
