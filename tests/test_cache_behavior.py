@@ -30,9 +30,17 @@ INVALID_ICS = "<html>temporary upstream error</html>"
 class FakeResponse:
     def __init__(self, text: str):
         self.text = text
+        self._content = text.encode("utf-8")
 
     def raise_for_status(self):
         return None
+
+    def iter_content(self, chunk_size=8192, decode_unicode=False):
+        for i in range(0, len(self._content), chunk_size):
+            yield self._content[i : i + chunk_size]
+
+    def close(self):
+        pass
 
 
 class MemoryCache:
@@ -334,7 +342,7 @@ def test_invalid_primary_cache_entry_is_deleted_and_refetched(monkeypatch):
     cache.store[cache_key] = INVALID_ICS
     calls = []
 
-    def get(url, timeout):
+    def get(url, timeout, **kwargs):
         calls.append((url, timeout))
         return FakeResponse(VALID_ICS_UPDATED)
 

@@ -134,11 +134,14 @@ class RedisCache:
             self.client.ping()
             self._connected = True
             logger.info(
-                f"Connected to Redis at {self.host}:{self.port} (SSL: {self.use_ssl})"
+                "Connected to Redis at %s:%s (SSL: %s)",
+                self.host,
+                self.port,
+                self.use_ssl,
             )
             return True
-        except (RedisError, Exception) as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+        except RedisError as e:
+            logger.error("Failed to connect to Redis: %s", e)
             self._connected = False
             return False
 
@@ -147,7 +150,7 @@ class RedisCache:
         try:
             return cls()
         except (ValueError, RedisError) as e:
-            logger.warning(f"Redis cache not available: {e}")
+            logger.warning("Redis cache not available: %s", e)
             return None
 
     def is_connected(self) -> bool:
@@ -156,7 +159,7 @@ class RedisCache:
         try:
             self.client.ping()
             return True
-        except (RedisError, Exception):
+        except RedisError:
             self._connected = False
             return False
 
@@ -178,8 +181,8 @@ class RedisCache:
                 self.stats.misses += 1
                 self.stats.miss_time_sum += elapsed
                 return default
-        except (RedisError, Exception) as e:
-            logger.error(f"Cache get error for key {key}: {e}")
+        except RedisError as e:
+            logger.error("Cache get error for key %s: %s", key, e)
             self.stats.errors += 1
             return default
 
@@ -197,8 +200,8 @@ class RedisCache:
             kwargs = {"ex": ttl} if ttl is not None else {}
             result = self.client.set(key, serialized, **kwargs)
             return bool(result)
-        except (RedisError, Exception) as e:
-            logger.error(f"Cache set error for key {key}: {e}")
+        except RedisError as e:
+            logger.error("Cache set error for key %s: %s", key, e)
             self.stats.errors += 1
             return False
 
@@ -207,8 +210,8 @@ class RedisCache:
             return False
         try:
             return bool(self.client.delete(key))
-        except (RedisError, Exception) as e:
-            logger.error(f"Cache delete error for key {key}: {e}")
+        except RedisError as e:
+            logger.error("Cache delete error for key %s: %s", key, e)
             return False
 
 

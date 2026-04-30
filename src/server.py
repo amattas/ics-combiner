@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-ICS Combiner FastAPI app with dual-factor path authentication (same scheme as the MCP servers, but with ICS-specific env names).
+ICS Combiner FastAPI app with dual-factor path authentication.
 Exposes a health endpoint and an authenticated ICS combine endpoint.
 """
 
 import os
 import sys
+import hmac
 import hashlib
 import asyncio
 import logging
-from typing import Optional
+import time
+from typing import Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
@@ -36,21 +38,36 @@ api_key = os.getenv("ICS_API_KEY")
 # Prefer SALT, but fall back to legacy MD5_SALT for backward compatibility
 path_salt = os.getenv("SALT") or os.getenv("MD5_SALT", "")
 
+REDIS_RETRY_INTERVAL = 60
+
 
 def _calc_api_hash(key: str, salt: str) -> str:
     if salt:
         hash_input = f"{salt}{key}"
     else:
         hash_input = key
-    # Use SHA-256 for the path hash to avoid weak-hash warnings
     return hashlib.sha256(hash_input.encode()).hexdigest()
+
+
+def _parse_ids(value: Optional[str]) -> Optional[List[int]]:
+    if not value:
+        return None
+    ids = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            ids.append(int(item))
+        except ValueError:
+            raise ValueError(f"Invalid ID value: {item!r}")
+    return ids if ids else None
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -60,7 +77,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         )
         response.headers["Content-Security-Policy"] = "default-src 'none'"
 
-        # Hide server headers
         for h in ("server", "x-powered-by"):
             if h in response.headers:
                 del response.headers[h]
@@ -69,7 +85,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
 
 def create_app() -> FastAPI:
-    # Validate API key characters
     if api_key and not api_key.replace("-", "").replace("_", "").isalnum():
         logger.error(
             "API key contains invalid characters. Use only alphanumeric, dash, and underscore."
@@ -82,8 +97,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="ICS Combiner", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(SecurityMiddleware)
 
-    # Services (lazy constructed on first authenticated request)
-    state = {"combiner": None}  # type: ignore
+    state = {"combiner": None, "last_redis_attempt": 0.0}
 
     def ensure_services_initialized():
         if state["combiner"] is None:
@@ -91,8 +105,55 @@ def create_app() -> FastAPI:
             try:
                 cache = RedisCache.from_env()
             except Exception as e:
-                logger.warning(f"Redis not configured or unavailable: {e}")
+                logger.warning("Redis not configured or unavailable: %s", e)
             state["combiner"] = ICSCombiner(cache=cache)
+            state["last_redis_attempt"] = time.time()
+        elif state["combiner"].cache is None:
+            now = time.time()
+            if now - state["last_redis_attempt"] >= REDIS_RETRY_INTERVAL:
+                state["last_redis_attempt"] = now
+                try:
+                    cache = RedisCache.from_env()
+                    if cache is not None:
+                        state["combiner"].cache = cache
+                        logger.info("Redis reconnected successfully")
+                except Exception as e:
+                    logger.debug("Redis retry failed: %s", e)
+
+    def _handle_combine_request(
+        request: Request, show: Optional[str], hide: Optional[str]
+    ) -> Response:
+        ensure_services_initialized()
+        combiner: ICSCombiner = state["combiner"]
+
+        try:
+            calendars, cal_name, days_history = ICSCombiner.load_sources_from_env()
+        except Exception as e:
+            logger.error(
+                "Error loading ICS sources from %s: %s",
+                request.client.host if request.client else "unknown",
+                e,
+            )
+            return Response(status_code=500)
+
+        try:
+            show_ids = _parse_ids(show)
+            hide_ids = _parse_ids(hide)
+        except ValueError:
+            return Response(status_code=400)
+
+        if show_ids is not None and hide_ids is not None:
+            return Response(status_code=400)
+
+        try:
+            ical_bytes = combiner.combine(
+                calendars, cal_name, days_history, show=show_ids, hide=hide_ids
+            )
+        except Exception:
+            logger.exception("Error combining calendars")
+            return Response(status_code=500)
+
+        return Response(content=ical_bytes, media_type="text/calendar")
 
     @app.get("/app/health")
     async def health() -> JSONResponse:
@@ -101,12 +162,13 @@ def create_app() -> FastAPI:
     if api_key:
         logger.info("ICS_API_KEY is set - using dual-factor path-based authentication")
         api_hash = _calc_api_hash(api_key, path_salt)
-        logger.info(f"API key hash: {api_hash[:8]}... (first 8 chars)")
+        logger.info("API key hash: %s... (first 8 chars)", api_hash[:8])
 
-        # Authenticated ICS endpoint
-        @app.get(f"/app/{api_key}/{api_hash}/ics")
+        @app.get("/app/{key}/{hash}/ics")
         async def combined(
             request: Request,
+            key: str,
+            hash: str,
             show: Optional[str] = Query(
                 default=None, description="Comma-separated IDs to include"
             ),
@@ -114,38 +176,18 @@ def create_app() -> FastAPI:
                 default=None, description="Comma-separated IDs to exclude"
             ),
         ) -> Response:
-            ensure_services_initialized()
-
-            combiner: ICSCombiner = state["combiner"]
-            try:
-                calendars, name, days_history = ICSCombiner.load_sources_from_env()
-            except Exception as e:
-                logger.info(
-                    "Error loading ICS sources for authenticated request from %s: %s",
+            if not hmac.compare_digest(key, api_key) or not hmac.compare_digest(
+                hash, api_hash
+            ):
+                logger.warning(
+                    "Invalid authentication attempt from %s",
                     request.client.host if request.client else "unknown",
-                    e,
                 )
-                # Let the reverse proxy render a 500 page
-                return Response(status_code=500)
+                await asyncio.sleep(30)
+                return Response(status_code=404)
 
-            show_ids = [int(x) for x in show.split(",")] if show else None
-            hide_ids = [int(x) for x in hide.split(",")] if hide else None
-            if show_ids is not None and hide_ids is not None:
-                logger.info(
-                    "Invalid show/hide params for authenticated request from %s: show=%s hide=%s",
-                    request.client.host if request.client else "unknown",
-                    show,
-                    hide,
-                )
-                # Let the reverse proxy render a 400 page
-                return Response(status_code=400)
+            return _handle_combine_request(request, show, hide)
 
-            ical_bytes = combiner.combine(
-                calendars, name, days_history, show=show_ids, hide=hide_ids
-            )
-            return Response(content=ical_bytes, media_type="text/calendar")
-
-        # Anti‑brute‑force 404 handler
         @app.exception_handler(404)
         async def not_found(request: Request, exc: HTTPException):
             if (
@@ -153,14 +195,21 @@ def create_app() -> FastAPI:
                 and request.url.path != "/app/health"
             ):
                 logger.warning(
-                    f"Invalid authentication path attempted: {request.url.path} from {request.client.host if request.client else 'unknown'}"
+                    "Invalid path attempted from %s",
+                    request.client.host if request.client else "unknown",
                 )
                 await asyncio.sleep(30)
-            # Return an empty 404 so any upstream (e.g. reverse proxy)
-            # can render its own 404 page.
             return Response(status_code=404)
 
     else:
+        allow_unauth = os.getenv("ICS_ALLOW_UNAUTHENTICATED", "").lower() == "true"
+        if not allow_unauth:
+            logger.error(
+                "ICS_API_KEY not set and ICS_ALLOW_UNAUTHENTICATED is not 'true'. "
+                "Set ICS_API_KEY for production or ICS_ALLOW_UNAUTHENTICATED=true for local dev."
+            )
+            sys.exit(1)
+
         logger.warning(
             "ICS_API_KEY not set - running in UNAUTHENTICATED mode (not recommended)"
         )
@@ -171,38 +220,7 @@ def create_app() -> FastAPI:
             show: Optional[str] = Query(default=None),
             hide: Optional[str] = Query(default=None),
         ) -> Response:
-            # Initialize on first request
-            if state["combiner"] is None:
-                ensure_services_initialized()
-            combiner: ICSCombiner = state["combiner"]
-
-            try:
-                calendars, name, days_history = ICSCombiner.load_sources_from_env()
-            except Exception as e:
-                logger.info(
-                    "Error loading ICS sources for unauthenticated request from %s: %s",
-                    request.client.host if request.client else "unknown",
-                    e,
-                )
-                # Let the reverse proxy render a 500 page
-                return Response(status_code=500)
-
-            show_ids = [int(x) for x in show.split(",")] if show else None
-            hide_ids = [int(x) for x in hide.split(",")] if hide else None
-            if show_ids is not None and hide_ids is not None:
-                logger.info(
-                    "Invalid show/hide params for unauthenticated request from %s: show=%s hide=%s",
-                    request.client.host if request.client else "unknown",
-                    show,
-                    hide,
-                )
-                # Let the reverse proxy render a 400 page
-                return Response(status_code=400)
-
-            ical_bytes = combiner.combine(
-                calendars, name, days_history, show=show_ids, hide=hide_ids
-            )
-            return Response(content=ical_bytes, media_type="text/calendar")
+            return _handle_combine_request(request, show, hide)
 
     return app
 

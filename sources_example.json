@@ -1,0 +1,69 @@
+[
+    {
+        "Id": 0,
+        "Url": "https://example.com/calendar/personal.ics"
+    },
+    {
+        "Id": 1,
+        "Url": "https://example.com/team_schedule/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.ics",
+        "Prefix": "Team A",
+        "FilterDuplicates": true
+    },
+    {
+        "Id": 2,
+        "Url": "https://example.com/team_schedule/filter/games/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.ics",
+        "Prefix": "Team A",
+        "PadStartMinutes": 30,
+        "Duration": 60,
+        "FilterDuplicates": true
+    },
+    {
+        "Id": 3,
+        "Url": "https://example.com/team_schedule/11111111-2222-3333-4444-555555555555.ics",
+        "Prefix": "Team B",
+        "FilterDuplicates": true
+    },
+    {
+        "Id": 4,
+        "Url": "https://example.com/team_schedule/filter/games/11111111-2222-3333-4444-555555555555.ics",
+        "Prefix": "Team B",
+        "PadStartMinutes": 40,
+        "Duration": 80,
+        "FilterDuplicates": true
+    },
+    {
+        "Id": 5,
+        "Url": "https://example.com/syncICS?o=XXXX&enc=your_token_here",
+        "Prefix": "Referee A",
+        "PadStartMinutes": 30,
+        "MakeUnique": true
+    },
+    {
+        "Id": 6,
+        "Url": "https://example.com/syncICS?o=YYYY&enc=your_token_here",
+        "Prefix": "Referee B",
+        "PadStartMinutes": 30,
+        "MakeUnique": true
+    },
+    {
+        "Id": 7,
+        "Url": "https://example.com/calendar/feed.ics?feedID=YOUR_FEED_ID_HERE",
+        "Prefix": "School A"
+    },
+    {
+        "Id": 8,
+        "Url": "https://example.com/calendar/feed.ics?feedID=YOUR_FEED_ID_HERE",
+        "Prefix": "School B"
+    },
+    {
+        "Id": 9,
+        "Url": "https://example.com/calendar/district.ics",
+        "Prefix": "District"
+    },
+    {
+        "Id": 10,
+        "Url": "https://example.com/iCal/schedule.ics?id=YOUR_SCHEDULE_ID_HERE",
+        "Prefix": "Referee A",
+        "PadStartMinutes": 30
+    }
+]

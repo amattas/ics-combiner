@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 SourceFetchResult = Tuple[Optional[str], bool, Optional[Calendar]]
 
+MAX_ICS_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+_GUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+)
+
 
 class ICSCombiner:
     def __init__(self, cache: Optional[RedisCache] = None):
@@ -23,19 +30,12 @@ class ICSCombiner:
 
     @staticmethod
     def _create_uid(input_string: str) -> str:
-        # Use UUID5 (SHA-1 under the hood) without manual hashing to avoid direct weak-hash usage
         guid = uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
         return str(guid)
 
     @staticmethod
     def _today_utc_date() -> date:
         return datetime.now(ZoneInfo("UTC")).date()
-
-    @staticmethod
-    def _guid_regex():
-        return re.compile(
-            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-        )
 
     @staticmethod
     def _normalize_ics_text(ics_text: str) -> str:
@@ -99,8 +99,50 @@ class ICSCombiner:
             return None
 
     @staticmethod
+    def _validate_sources(calendars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen_ids: set[int] = set()
+        validated = []
+        for i, cal in enumerate(calendars):
+            raw_id = cal.get("Id")
+            if raw_id is None:
+                raise ValueError(f"Source at index {i} is missing required 'Id' field")
+            try:
+                cal["Id"] = int(raw_id)
+            except (TypeError, ValueError) as err:
+                raise ValueError(
+                    f"Source at index {i} has non-integer Id: {raw_id!r}"
+                ) from err
+            if cal["Id"] in seen_ids:
+                raise ValueError(f"Duplicate source Id: {cal['Id']}")
+            seen_ids.add(cal["Id"])
+
+            if not cal.get("Url"):
+                raise ValueError(f"Source {cal['Id']} is missing required 'Url' field")
+
+            if cal.get("Url", "").startswith("http://"):
+                logger.warning(
+                    "Source %s uses insecure HTTP URL — consider switching to HTTPS",
+                    cal["Id"],
+                )
+
+            for field in ("Duration", "PadStartMinutes"):
+                val = cal.get(field)
+                if val is not None:
+                    if not isinstance(val, (int, float)):
+                        raise ValueError(
+                            f"Source {cal['Id']} has non-numeric {field}: {val!r}"
+                        )
+                    if val < 0:
+                        raise ValueError(
+                            f"Source {cal['Id']} has negative {field}: {val}"
+                        )
+                    cal[field] = int(val)
+
+            validated.append(cal)
+        return validated
+
+    @staticmethod
     def load_sources_from_env() -> Tuple[List[Dict[str, Any]], str, int]:
-        # Backward compatibility with Azure function env names
         sources_raw = os.getenv("ICS_SOURCES") or os.getenv("CalendarSources")
         if not sources_raw:
             raise ValueError("ICS_SOURCES (or CalendarSources) env var is required")
@@ -109,6 +151,8 @@ class ICSCombiner:
             calendars = json.loads(sources_raw)
         except Exception as err:
             raise ValueError("ICS_SOURCES is not valid JSON") from err
+
+        calendars = ICSCombiner._validate_sources(calendars)
 
         name = os.getenv("ICS_NAME") or os.getenv("CalendarName") or "Combined Calendar"
         days_history = int(
@@ -148,7 +192,7 @@ class ICSCombiner:
         the data came from a last-known-good fallback after a fetch failure.
         """
         if not source.get("Url"):
-            logger.warning(f"Source missing Url: {source}")
+            logger.warning("Source missing Url: %s", source)
             return None, False, None
 
         cache_key = self._cache_key_for_source(source)
@@ -165,7 +209,7 @@ class ICSCombiner:
                 parsed_lkg = self._parse_ics_text(lkg)
                 if parsed_lkg is not None:
                     logger.info(
-                        f"Using last-known-good cache for source {source.get('Id')}"
+                        "Using last-known-good cache for source %s", source.get("Id")
                     )
                     return lkg, True, parsed_lkg
 
@@ -205,13 +249,27 @@ class ICSCombiner:
 
         # Fetch from network
         try:
-            resp = requests.get(source["Url"], timeout=15)
+            resp = requests.get(source["Url"], timeout=15, stream=True)
             resp.raise_for_status()
+            chunks = []
+            downloaded = 0
+            for chunk in resp.iter_content(chunk_size=8192, decode_unicode=False):
+                downloaded += len(chunk)
+                if downloaded > MAX_ICS_RESPONSE_BYTES:
+                    logger.error(
+                        "Response too large for source %s (>%s bytes), aborting",
+                        source.get("Id"),
+                        MAX_ICS_RESPONSE_BYTES,
+                    )
+                    resp.close()
+                    return record_failure_and_get_lkg()
+                chunks.append(chunk)
+            raw_text = b"".join(chunks).decode("utf-8", errors="replace")
         except requests.RequestException as err:
-            logger.error(f"Failed to fetch ICS for source {source.get('Id')}: {err}")
+            logger.error("Failed to fetch ICS for source %s: %s", source.get("Id"), err)
             return record_failure_and_get_lkg()
 
-        ics_text = self._normalize_ics_text(resp.text)
+        ics_text = self._normalize_ics_text(raw_text)
         parsed_ics = self._parse_ics_text(ics_text)
         if parsed_ics is None:
             logger.error("Fetched invalid ICS for source %s", source.get("Id"))
@@ -251,7 +309,7 @@ class ICSCombiner:
         combined_cal.add("x-wr-calname", name)
 
         temp_cal: Dict[str, Event] = {}
-        guid_re = self._guid_regex()
+        seen_tz: set[str] = set()
 
         def should_include(cal: Dict[str, Any]) -> bool:
             cid = cal.get("Id")
@@ -273,204 +331,232 @@ class ICSCombiner:
                 # Skip failed sources
                 continue
 
-            # Copy timezone definitions to combined calendar
+            # Copy timezone definitions, deduplicating identical ones
             for tz in ical.walk("VTIMEZONE"):
-                combined_cal.add_component(tz)
+                tzid = str(tz.get("TZID", ""))
+                tz_serialized = tz.to_ical()
+                tz_key = f"{tzid}:{tz_serialized}"
+                if tz_key not in seen_tz:
+                    seen_tz.add(tz_key)
+                    combined_cal.add_component(tz)
 
             for component in ical.walk("VEVENT"):
-                end = component.get("dtend")
+                try:
+                    end = component.get("dtend")
 
-                # Only show configured historical events
-                if end and days_history:
-                    dt_val = end.dt
-                    event_date = (
-                        dt_val.date() if isinstance(dt_val, datetime) else dt_val
-                    )
-                    if (
-                        event_date < today - timedelta(days=days_history)
-                        and "RRULE" not in component
-                    ):
-                        continue
+                    # Only show configured historical events
+                    if end and days_history:
+                        dt_val = end.dt
+                        event_date = (
+                            dt_val.date() if isinstance(dt_val, datetime) else dt_val
+                        )
+                        if (
+                            event_date < today - timedelta(days=days_history)
+                            and "RRULE" not in component
+                        ):
+                            continue
 
-                copied_event = Event()
-                for key, value in component.items():
-                    if isinstance(value, list):
-                        for item in value:
-                            copied_event.add(key, item)
-                    else:
-                        copied_event.add(key, value)
+                    copied_event = Event()
+                    for key, value in component.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                copied_event.add(key, item)
+                        else:
+                            copied_event.add(key, value)
 
-                # Resolve and normalize DTSTART (may be missing or stored as text)
-                dtstart_prop = copied_event.get("DTSTART")
-                if dtstart_prop is None:
-                    logger.warning(
-                        "Skipping event without DTSTART (source_id=%s, prefix=%s, summary=%s)",
-                        calendar.get("Id"),
-                        calendar.get("Prefix"),
-                        copied_event.get("SUMMARY"),
-                    )
-                    # Skip events without a start time
-                    continue
-
-                # icalendar properties usually carry the real value on .dt
-                dtstart_val = getattr(dtstart_prop, "dt", dtstart_prop)
-
-                # Some feeds provide non‑RFC5545 strings that icalendar cannot
-                # interpret as dates/times (for example, ISO 8601 with spaces
-                # and offsets). Normalize those into proper datetime/date values
-                # so that to_ical() always emits RFC5545-compliant DTSTART.
-                if isinstance(dtstart_val, str):
-                    parsed = self._parse_datetime_or_date(dtstart_val)
-                    if parsed is None:
+                    # Generate a fallback UID if missing
+                    if copied_event.get("UID") is None:
+                        fallback_uid = self._create_uid(
+                            f"{calendar.get('Id')}-{copied_event.get('DTSTART')}-{copied_event.get('SUMMARY')}"
+                        )
+                        copied_event.add("uid", fallback_uid)
                         logger.warning(
-                            "Skipping event with unparseable DTSTART (source_id=%s, prefix=%s, raw_dtstart=%s, summary=%s)",
+                            "Generated fallback UID for event without UID (source_id=%s, summary=%s)",
+                            calendar.get("Id"),
+                            copied_event.get("SUMMARY"),
+                        )
+
+                    # Resolve and normalize DTSTART (may be missing or stored as text)
+                    dtstart_prop = copied_event.get("DTSTART")
+                    if dtstart_prop is None:
+                        logger.warning(
+                            "Skipping event without DTSTART (source_id=%s, prefix=%s, summary=%s)",
                             calendar.get("Id"),
                             calendar.get("Prefix"),
-                            dtstart_val,
+                            copied_event.get("SUMMARY"),
+                        )
+                        # Skip events without a start time
+                        continue
+
+                    # icalendar properties usually carry the real value on .dt
+                    dtstart_val = getattr(dtstart_prop, "dt", dtstart_prop)
+
+                    # Some feeds provide non‑RFC5545 strings that icalendar cannot
+                    # interpret as dates/times (for example, ISO 8601 with spaces
+                    # and offsets). Normalize those into proper datetime/date values
+                    # so that to_ical() always emits RFC5545-compliant DTSTART.
+                    if isinstance(dtstart_val, str):
+                        parsed = self._parse_datetime_or_date(dtstart_val)
+                        if parsed is None:
+                            logger.warning(
+                                "Skipping event with unparseable DTSTART (source_id=%s, prefix=%s, raw_dtstart=%s, summary=%s)",
+                                calendar.get("Id"),
+                                calendar.get("Prefix"),
+                                dtstart_val,
+                                copied_event.get("SUMMARY"),
+                            )
+                            continue
+                        dtstart_val = parsed
+                        # Replace existing DTSTART with a proper datetime- or date-valued one
+                        copied_event.pop("DTSTART", None)
+                        copied_event.add("dtstart", dtstart_val)
+
+                    # At this point dtstart_val should be a datetime or date. If not, skip.
+                    if not isinstance(dtstart_val, (datetime, date)):
+                        logger.warning(
+                            "Skipping event with invalid DTSTART type (source_id=%s, prefix=%s, type=%s, summary=%s)",
+                            calendar.get("Id"),
+                            calendar.get("Prefix"),
+                            type(dtstart_val),
                             copied_event.get("SUMMARY"),
                         )
                         continue
-                    dtstart_val = parsed
-                    # Replace existing DTSTART with a proper datetime- or date-valued one
-                    copied_event.pop("DTSTART", None)
-                    copied_event.add("dtstart", dtstart_val)
 
-                # At this point dtstart_val should be a datetime or date. If not, skip.
-                if not isinstance(dtstart_val, (datetime, date)):
-                    logger.warning(
-                        "Skipping event with invalid DTSTART type (source_id=%s, prefix=%s, type=%s, summary=%s)",
-                        calendar.get("Id"),
-                        calendar.get("Prefix"),
-                        type(dtstart_val),
-                        copied_event.get("SUMMARY"),
-                    )
-                    continue
-
-                # Set duration if specified (combcal semantics) – for timed events only.
-                if calendar.get("Duration") is not None and isinstance(
-                    dtstart_val, datetime
-                ):
-                    # Override any existing duration and remove DTEND so that the
-                    # effective length is driven exclusively by DURATION, matching
-                    # the original combcal behaviour and what icalendar >= 6 emits.
-                    copied_event.pop("DURATION", None)
-                    copied_event.pop("DTEND", None)
-                    copied_event.add(
-                        "DURATION", timedelta(minutes=calendar.get("Duration"))
-                    )
-                else:
-                    has_dtend = copied_event.get("DTEND") is not None
-                    has_duration = copied_event.get("DURATION") is not None
-
-                    # If there is no duration or end time, add sensible defaults
-                    # (5 minutes for timed events, 1 day for all‑day events).
-                    if not has_dtend and not has_duration:
-                        if isinstance(dtstart_val, datetime):
-                            copied_event.add("DURATION", timedelta(minutes=5))
-                        elif isinstance(dtstart_val, date):
-                            copied_event.add("DURATION", timedelta(days=1))
-                        else:
-                            # Should not occur given the type check above, but keep guard.
-                            continue
-
-                # Add padding (arrival time) using the original combcal rules,
-                # but in a way that works across icalendar versions:
-                # - Shift DTSTART earlier by PadStartMinutes.
-                # - Set DURATION based on the event's effective duration plus the pad.
-                pad_minutes = calendar.get("PadStartMinutes")
-                if pad_minutes is not None and isinstance(dtstart_val, datetime):
-                    pad = timedelta(minutes=pad_minutes)
-
-                    # Compute original duration. If the event already had a
-                    # DURATION, use that. Otherwise derive it from DTEND and the
-                    # *original* DTSTART.
-                    dur_prop = copied_event.get("DURATION")
-                    dtend_prop = copied_event.get("DTEND")
-
-                    original_duration: Optional[timedelta] = None
-                    if dur_prop is not None:
-                        try:
-                            original_duration = copied_event.decoded("DURATION")
-                        except Exception:
-                            val = getattr(dur_prop, "dt", None)
-                            if isinstance(val, timedelta):
-                                original_duration = val
-                    elif dtend_prop is not None:
-                        dtend_val = getattr(dtend_prop, "dt", dtend_prop)
-                        if isinstance(dtend_val, datetime):
-                            original_duration = dtend_val - dtstart_val
-
-                    if original_duration is not None:
-                        # Shift start earlier by the pad.
-                        new_start = dtstart_val - pad
-                        copied_event.pop("DTSTART", None)
-                        copied_event.add("DTSTART", new_start)
-
-                        # Match combcal's duration semantics:
-                        # - If the event *only* had DURATION originally, the new
-                        #   total duration is original_duration + pad.
-                        # - If it had an explicit DTEND (no DURATION), its
-                        #   combcal behaviour is: duration becomes
-                        #   (original_duration + pad) and then another pad is
-                        #   added, i.e. original_duration + 2*pad.
-                        if dur_prop is not None:
-                            new_duration = original_duration + pad
-                        elif dtend_prop is not None:
-                            new_duration = original_duration + (pad * 2)
-                        else:
-                            new_duration = original_duration
-
-                        # Use DURATION exclusively to represent the new length.
+                    # Set duration if specified (combcal semantics) – for timed events only.
+                    if calendar.get("Duration") is not None and isinstance(
+                        dtstart_val, datetime
+                    ):
+                        # Override any existing duration and remove DTEND so that the
+                        # effective length is driven exclusively by DURATION, matching
+                        # the original combcal behaviour and what icalendar >= 6 emits.
                         copied_event.pop("DURATION", None)
                         copied_event.pop("DTEND", None)
-                        copied_event.add("DURATION", new_duration)
-
-                # Add stale indicator and prefix
-                stale_marker = "⚠️ " if is_stale else ""
-                if calendar.get("Prefix") is not None:
-                    copied_event["SUMMARY"] = (
-                        f"{stale_marker}{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
-                    )
-                elif is_stale:
-                    copied_event["SUMMARY"] = (
-                        f"{stale_marker}{copied_event.get('SUMMARY')}"
-                    )
-
-                # Update UID to a unique value if specified
-                if calendar.get("MakeUnique") is not None and calendar.get(
-                    "MakeUnique"
-                ):
-                    copied_event["UID"] = self._create_uid(
-                        f"{calendar.get('Id')}-{copied_event['UID']}"
-                    )
-                else:
-                    # Ensure UID is a GUID for Outlook compatibility
-                    if not guid_re.match(copied_event["UID"]):
-                        copied_event["UID"] = self._create_uid(f"{copied_event['UID']}")
-
-                # Remove Organizer
-                copied_event.pop("ORGANIZER", None)
-
-                # Remove empty lines from the description
-                if copied_event.get("DESCRIPTION"):
-                    try:
-                        desc_str = copied_event.decoded("DESCRIPTION").decode(
-                            "utf-8", errors="ignore"
+                        copied_event.add(
+                            "DURATION", timedelta(minutes=calendar.get("Duration"))
                         )
-                    except Exception:
-                        desc_str = str(copied_event.get("DESCRIPTION"))
-                    desc_str = "\n".join(
-                        line for line in desc_str.splitlines() if line.strip()
-                    )
-                    copied_event["DESCRIPTION"] = desc_str.strip()
+                    else:
+                        has_dtend = copied_event.get("DTEND") is not None
+                        has_duration = copied_event.get("DURATION") is not None
 
-                # De-duplicate or add immediately
-                if calendar.get("FilterDuplicates") is not None and calendar.get(
-                    "FilterDuplicates"
-                ):
-                    temp_cal[copied_event["UID"]] = copied_event
-                else:
-                    combined_cal.add_component(copied_event)
+                        # If there is no duration or end time, add sensible defaults
+                        # (5 minutes for timed events, 1 day for all‑day events).
+                        if not has_dtend and not has_duration:
+                            if isinstance(dtstart_val, datetime):
+                                copied_event.add("DURATION", timedelta(minutes=5))
+                            elif isinstance(dtstart_val, date):
+                                copied_event.add("DURATION", timedelta(days=1))
+                            else:
+                                # Should not occur given the type check above, but keep guard.
+                                continue
+
+                    # Add padding (arrival time) using the original combcal rules,
+                    # but in a way that works across icalendar versions:
+                    # - Shift DTSTART earlier by PadStartMinutes.
+                    # - Set DURATION based on the event's effective duration plus the pad.
+                    pad_minutes = calendar.get("PadStartMinutes")
+                    if pad_minutes is not None and isinstance(dtstart_val, datetime):
+                        pad = timedelta(minutes=pad_minutes)
+
+                        # Compute original duration. If the event already had a
+                        # DURATION, use that. Otherwise derive it from DTEND and the
+                        # *original* DTSTART.
+                        dur_prop = copied_event.get("DURATION")
+                        dtend_prop = copied_event.get("DTEND")
+
+                        original_duration: Optional[timedelta] = None
+                        if dur_prop is not None:
+                            try:
+                                original_duration = copied_event.decoded("DURATION")
+                            except Exception:
+                                val = getattr(dur_prop, "dt", None)
+                                if isinstance(val, timedelta):
+                                    original_duration = val
+                        elif dtend_prop is not None:
+                            dtend_val = getattr(dtend_prop, "dt", dtend_prop)
+                            if isinstance(dtend_val, datetime):
+                                original_duration = dtend_val - dtstart_val
+
+                        if original_duration is not None:
+                            # Shift start earlier by the pad.
+                            new_start = dtstart_val - pad
+                            copied_event.pop("DTSTART", None)
+                            copied_event.add("DTSTART", new_start)
+
+                            # Match combcal's duration semantics:
+                            # - If the event *only* had DURATION originally, the new
+                            #   total duration is original_duration + pad.
+                            # - If it had an explicit DTEND (no DURATION), its
+                            #   combcal behaviour is: duration becomes
+                            #   (original_duration + pad) and then another pad is
+                            #   added, i.e. original_duration + 2*pad.
+                            if dur_prop is not None:
+                                new_duration = original_duration + pad
+                            elif dtend_prop is not None:
+                                new_duration = original_duration + (pad * 2)
+                            else:
+                                new_duration = original_duration
+
+                            # Use DURATION exclusively to represent the new length.
+                            copied_event.pop("DURATION", None)
+                            copied_event.pop("DTEND", None)
+                            copied_event.add("DURATION", new_duration)
+
+                    # Add stale indicator and prefix
+                    stale_marker = "⚠️ " if is_stale else ""
+                    if calendar.get("Prefix") is not None:
+                        copied_event["SUMMARY"] = (
+                            f"{stale_marker}{calendar.get('Prefix')}: {copied_event.get('SUMMARY')}"
+                        )
+                    elif is_stale:
+                        copied_event["SUMMARY"] = (
+                            f"{stale_marker}{copied_event.get('SUMMARY')}"
+                        )
+
+                    # Update UID to a unique value if specified
+                    current_uid = str(copied_event.get("UID", ""))
+                    if calendar.get("MakeUnique"):
+                        new_uid = self._create_uid(
+                            f"{calendar.get('Id')}-{current_uid}"
+                        )
+                        copied_event.pop("UID", None)
+                        copied_event.add("uid", new_uid)
+                    else:
+                        if not _GUID_RE.match(current_uid):
+                            new_uid = self._create_uid(current_uid)
+                            copied_event.pop("UID", None)
+                            copied_event.add("uid", new_uid)
+
+                    # Remove Organizer
+                    copied_event.pop("ORGANIZER", None)
+
+                    # Remove empty lines from the description
+                    if copied_event.get("DESCRIPTION"):
+                        try:
+                            desc_str = copied_event.decoded("DESCRIPTION").decode(
+                                "utf-8", errors="ignore"
+                            )
+                        except Exception:
+                            desc_str = str(copied_event.get("DESCRIPTION"))
+                        desc_str = "\n".join(
+                            line for line in desc_str.splitlines() if line.strip()
+                        )
+                        copied_event["DESCRIPTION"] = desc_str.strip()
+
+                    # De-duplicate or add immediately
+                    if calendar.get("FilterDuplicates"):
+                        dedup_key = (
+                            str(copied_event.get("UID", "")),
+                            str(copied_event.get("RECURRENCE-ID", "")),
+                        )
+                        temp_cal[dedup_key] = copied_event
+                    else:
+                        combined_cal.add_component(copied_event)
+
+                except Exception:
+                    logger.exception(
+                        "Error processing event in source %s, skipping",
+                        calendar.get("Id"),
+                    )
 
         # Add deduplicated events
         for e in temp_cal.values():
