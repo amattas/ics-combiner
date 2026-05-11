@@ -32,9 +32,11 @@ For Redis‑backed caching of source ICS feeds:
 - `REDIS_HOST` – Redis hostname
 - `REDIS_SSL_PORT` – Redis SSL port (default: `6380`)
 - `REDIS_KEY` – Redis access key
+- `ICS_CACHE_NAMESPACE` – Optional Redis namespace. Set this to a stable, unique value per app when sharing one Redis instance. If omitted, a namespace is derived from `ICS_API_KEY` when available.
 
 - `CACHE_TTL_ICS_SOURCE_DEFAULT` – Default TTL (seconds) for source ICS caching (used when a source does not define `RefreshSeconds`)
-- `CACHE_TTL_ICS_SOURCE_LKG` – Last-known-good fallback TTL (seconds; default: `86400`; minimum: `1`)
+- `CACHE_TTL_ICS_SOURCE_LKG` – Optional last-known-good fallback TTL (seconds). Leave unset or set to `0` to retain indefinitely, which is the default.
 - `CACHE_TTL_ICS_SOURCE_FAILURE_BACKOFF` – Backoff TTL after a source fetch failure (seconds; default: `60`; minimum: `1`)
 
 When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.
+Cache keys are scoped by namespace so multiple apps can share the same Redis instance. The app also tracks source keys in that namespace and deletes cached primary/LKG entries for calendars removed from `ICS_SOURCES` on the next combine request.

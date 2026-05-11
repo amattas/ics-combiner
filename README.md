@@ -18,11 +18,12 @@ Environment
 - SALT: Optional salt used for API path hash (preferred)
 - MD5_SALT: Legacy name for `SALT` (still supported)
 - REDIS_HOST, REDIS_SSL_PORT (default 6380), REDIS_KEY: Redis connection
+- ICS_CACHE_NAMESPACE: Optional Redis namespace. Set this when sharing one Redis instance across multiple apps. If omitted, a namespace is derived from `ICS_API_KEY` when available.
 - ICS_SOURCES: JSON array of calendar configs (see example)
 - ICS_NAME: Combined calendar display name
 - ICS_DAYS_HISTORY: Days of history to include (int)
 - CACHE_TTL_ICS_SOURCE_DEFAULT: Default TTL (seconds) for source ICS caching
-- CACHE_TTL_ICS_SOURCE_LKG: Last-known-good fallback TTL (seconds, minimum 1)
+- CACHE_TTL_ICS_SOURCE_LKG: Optional last-known-good fallback TTL (seconds). Leave unset or set to 0 to retain indefinitely.
 - CACHE_TTL_ICS_SOURCE_FAILURE_BACKOFF: Backoff TTL (seconds) after a source fetch failure (minimum 1)
 
 Calendar source config
@@ -36,6 +37,11 @@ Each object in `ICS_SOURCES` may include the following keys (compatible with cal
 - FilterDuplicates (optional, bool): de‑duplicate events by UID
 - RefreshSeconds (optional, int): cache TTL for this calendar’s source ICS
   - Set to 0 to bypass the fresh source cache while still using failure backoff and last-known-good fallback cache when Redis is configured.
+
+Cache behavior
+- Cache keys are scoped by app namespace so multiple apps can share one Redis instance without overwriting each other's source cache. Use a stable `ICS_CACHE_NAMESPACE` per app if `ICS_API_KEY` is not set or if several apps intentionally share an API key.
+- Successful source fetches store a last-known-good copy indefinitely by default. A positive `CACHE_TTL_ICS_SOURCE_LKG` can cap that retention.
+- Removed calendars are not emitted just because their old source data remains in Redis. The app tracks source keys per namespace and prunes cache entries for sources removed from `ICS_SOURCES` on the next combine request.
 
 Endpoints
 - GET /app/health — health status (no auth)

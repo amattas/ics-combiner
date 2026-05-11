@@ -234,11 +234,37 @@ def _get_cache_ttl(env_var: str, default: int, minimum: int = 0) -> int:
     return default
 
 
+def _get_optional_cache_ttl(env_var: str) -> int | None:
+    env_value = os.getenv(f"CACHE_TTL_{env_var}")
+    if env_value is None or env_value == "":
+        return None
+
+    try:
+        value = int(env_value)
+    except ValueError:
+        logger.warning(
+            f"Invalid TTL value for CACHE_TTL_{env_var}: {env_value}, using no expiration"
+        )
+        return None
+
+    if value < 0:
+        logger.warning(
+            f"Invalid TTL for CACHE_TTL_{env_var}: {value} "
+            "(`0` means no expiration), using no expiration"
+        )
+        return None
+
+    if value == 0:
+        return None
+
+    return value
+
+
 class CacheTTL:
     # Default TTL for ICS source caching
     ICS_SOURCE_DEFAULT = _get_cache_ttl("ICS_SOURCE_DEFAULT", 600)
-    # Last-known-good fallback TTL (24 hours)
-    ICS_SOURCE_LKG = _get_cache_ttl("ICS_SOURCE_LKG", 86400, minimum=1)
+    # Last-known-good fallback TTL. Unset/0 means retain indefinitely.
+    ICS_SOURCE_LKG = _get_optional_cache_ttl("ICS_SOURCE_LKG")
     # Backoff TTL for failed source fetches
     ICS_SOURCE_FAILURE_BACKOFF = _get_cache_ttl(
         "ICS_SOURCE_FAILURE_BACKOFF", 60, minimum=1

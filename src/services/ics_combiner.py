@@ -25,13 +25,41 @@ _GUID_RE = re.compile(
 
 
 class ICSCombiner:
-    def __init__(self, cache: Optional[RedisCache] = None):
+    def __init__(
+        self,
+        cache: Optional[RedisCache] = None,
+        cache_namespace: Optional[str] = None,
+    ):
         self.cache = cache
+        self.cache_namespace = cache_namespace or self._cache_namespace_from_env()
 
     @staticmethod
     def _create_uid(input_string: str) -> str:
         guid = uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
         return str(guid)
+
+    @staticmethod
+    def _sanitize_cache_namespace(namespace: str) -> str:
+        cleaned = re.sub(r"[^a-zA-Z0-9_.:-]+", "_", namespace.strip()).strip("_")
+        if cleaned:
+            return cleaned[:80]
+
+        namespace_hash = hashlib.sha256(namespace.encode("utf-8")).hexdigest()[:16]
+        return f"app:{namespace_hash}"
+
+    @classmethod
+    def _cache_namespace_from_env(cls) -> str:
+        namespace = os.getenv("ICS_CACHE_NAMESPACE") or os.getenv("CACHE_KEY_PREFIX")
+        if namespace:
+            return cls._sanitize_cache_namespace(namespace)
+
+        api_key = os.getenv("ICS_API_KEY")
+        if api_key:
+            salt = os.getenv("SALT") or os.getenv("MD5_SALT", "")
+            namespace_hash = hashlib.sha256(f"{salt}{api_key}".encode()).hexdigest()
+            return f"app:{namespace_hash[:16]}"
+
+        return "default"
 
     @staticmethod
     def _today_utc_date() -> date:
@@ -168,12 +196,47 @@ class ICSCombiner:
         # Global default (can be overridden via CACHE_TTL_ICS_SOURCE_DEFAULT)
         return CacheTTL.ICS_SOURCE_DEFAULT
 
-    def _cache_key_for_source(self, source: Dict[str, Any]) -> str:
+    @staticmethod
+    def _source_cache_id(source: Dict[str, Any]) -> Tuple[Any, str]:
         sid = source.get("Id", "unknown")
         url = source.get("Url", "")
         # Use SHA-256 for cache key derivation to avoid weak-hash warnings
         url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest() if url else "no_url"
+        return sid, url_hash
+
+    def _legacy_cache_key_for_source(self, source: Dict[str, Any]) -> str:
+        sid, url_hash = self._source_cache_id(source)
         return f"ics:source:{sid}:{url_hash}"
+
+    def _cache_key_for_source(self, source: Dict[str, Any]) -> str:
+        sid, url_hash = self._source_cache_id(source)
+        return f"ics:{self.cache_namespace}:source:{sid}:{url_hash}"
+
+    def _source_index_key(self) -> str:
+        return f"ics:{self.cache_namespace}:sources"
+
+    def _track_configured_sources(self, calendars: List[Dict[str, Any]]) -> None:
+        if not self.cache or not self.cache.is_connected():
+            return
+
+        active_keys = {
+            self._cache_key_for_source(calendar)
+            for calendar in calendars
+            if calendar.get("Id") is not None and calendar.get("Url")
+        }
+        index_key = self._source_index_key()
+        previous_index = self.cache.get(index_key, default=[])
+        previous_keys = (
+            {key for key in previous_index if isinstance(key, str)}
+            if isinstance(previous_index, list)
+            else set()
+        )
+
+        for removed_key in previous_keys - active_keys:
+            self.cache.delete(removed_key)
+            self.cache.delete(f"{removed_key}:lkg")
+
+        self.cache.set(index_key, sorted(active_keys), ttl=None)
 
     @staticmethod
     def _parse_ics_text(ics_text: str) -> Optional[Calendar]:
@@ -196,28 +259,50 @@ class ICSCombiner:
             return None, False, None
 
         cache_key = self._cache_key_for_source(source)
+        legacy_cache_key = self._legacy_cache_key_for_source(source)
         lkg_key = f"{cache_key}:lkg"
+        legacy_lkg_key = f"{legacy_cache_key}:lkg"
         ttl = self._get_source_ttl(source)
         failure_backoff_ttl = CacheTTL.ICS_SOURCE_FAILURE_BACKOFF
+
+        def cache_key_candidates() -> List[Tuple[str, bool]]:
+            candidates = [(cache_key, True)]
+            if legacy_cache_key != cache_key:
+                candidates.append((legacy_cache_key, False))
+            return candidates
+
+        def lkg_key_candidates() -> List[Tuple[str, bool]]:
+            candidates = [(lkg_key, True)]
+            if legacy_lkg_key != lkg_key:
+                candidates.append((legacy_lkg_key, False))
+            return candidates
+
+        def store_lkg(ics_text: str) -> None:
+            if self.cache and self.cache.is_connected():
+                self.cache.set(lkg_key, ics_text, ttl=CacheTTL.ICS_SOURCE_LKG)
 
         def get_lkg_from_cache() -> SourceFetchResult:
             if not self.cache or not self.cache.is_connected():
                 return None, False, None
 
-            lkg = self.cache.get(lkg_key)
-            if isinstance(lkg, str) and lkg:
-                parsed_lkg = self._parse_ics_text(lkg)
-                if parsed_lkg is not None:
-                    logger.info(
-                        "Using last-known-good cache for source %s", source.get("Id")
-                    )
-                    return lkg, True, parsed_lkg
+            for candidate_key, owns_key in lkg_key_candidates():
+                lkg = self.cache.get(candidate_key)
+                if isinstance(lkg, str) and lkg:
+                    parsed_lkg = self._parse_ics_text(lkg)
+                    if parsed_lkg is not None:
+                        logger.info(
+                            "Using last-known-good cache for source %s",
+                            source.get("Id"),
+                        )
+                        store_lkg(lkg)
+                        return lkg, True, parsed_lkg
 
-                logger.warning(
-                    "Ignoring invalid last-known-good cache for source %s",
-                    source.get("Id"),
-                )
-                self.cache.delete(lkg_key)
+                    logger.warning(
+                        "Ignoring invalid last-known-good cache for source %s",
+                        source.get("Id"),
+                    )
+                    if owns_key:
+                        self.cache.delete(candidate_key)
 
             return None, False, None
 
@@ -232,20 +317,27 @@ class ICSCombiner:
 
         # Try cache (empty string = negative cache from a prior failure)
         if self.cache and self.cache.is_connected():
-            cached = self.cache.get(cache_key)
-            if isinstance(cached, str):
-                if not cached:
-                    # Negative cache hit — don't retry upstream, serve LKG if available
-                    return get_lkg_from_cache()
+            for candidate_key, owns_key in cache_key_candidates():
+                cached = self.cache.get(candidate_key)
+                if isinstance(cached, str):
+                    if not cached:
+                        if owns_key:
+                            # Negative cache hit — don't retry upstream, serve LKG if available
+                            return get_lkg_from_cache()
+                        continue
 
-                parsed_cached = self._parse_ics_text(cached)
-                if parsed_cached is not None:
-                    return cached, False, parsed_cached
+                    parsed_cached = self._parse_ics_text(cached)
+                    if parsed_cached is not None:
+                        if not owns_key:
+                            self.cache.set(cache_key, cached, ttl=ttl)
+                        store_lkg(cached)
+                        return cached, False, parsed_cached
 
-                logger.warning(
-                    "Ignoring invalid cached ICS for source %s", source.get("Id")
-                )
-                self.cache.delete(cache_key)
+                    logger.warning(
+                        "Ignoring invalid cached ICS for source %s", source.get("Id")
+                    )
+                    if owns_key:
+                        self.cache.delete(candidate_key)
 
         # Fetch from network
         try:
@@ -279,8 +371,8 @@ class ICSCombiner:
         if self.cache and self.cache.is_connected():
             # Primary cache (controls fetch frequency)
             self.cache.set(cache_key, ics_text, ttl=ttl)
-            # Last-known-good cache (long-lived fallback)
-            self.cache.set(lkg_key, ics_text, ttl=CacheTTL.ICS_SOURCE_LKG)
+            # Last-known-good cache (fallback when the upstream source fails)
+            store_lkg(ics_text)
 
         return ics_text, False, parsed_ics
 
@@ -310,6 +402,8 @@ class ICSCombiner:
 
         temp_cal: Dict[str, Event] = {}
         seen_tz: set[str] = set()
+
+        self._track_configured_sources(calendars)
 
         def should_include(cal: Dict[str, Any]) -> bool:
             cid = cal.get("Id")
