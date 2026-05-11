@@ -526,16 +526,18 @@
 <ul>
 <li><code>REDIS_HOST</code> – Redis hostname</li>
 <li><code>REDIS_SSL_PORT</code> – Redis SSL port (default: <code>6380</code>)</li>
+<li><code>REDIS_KEY</code> – Redis access key</li>
 <li>
-<p><code>REDIS_KEY</code> – Redis access key</p>
+<p><code>ICS_CACHE_NAMESPACE</code> – Optional Redis namespace. Set this to a stable, unique value per app when sharing one Redis instance. If omitted, a namespace is derived from <code>ICS_API_KEY</code> when available.</p>
 </li>
 <li>
 <p><code>CACHE_TTL_ICS_SOURCE_DEFAULT</code> – Default TTL (seconds) for source ICS caching (used when a source does not define <code>RefreshSeconds</code>)</p>
 </li>
-<li><code>CACHE_TTL_ICS_SOURCE_LKG</code> – Last-known-good fallback TTL (seconds; default: <code>86400</code>; minimum: <code>1</code>)</li>
+<li><code>CACHE_TTL_ICS_SOURCE_LKG</code> – Optional last-known-good fallback TTL (seconds). Leave unset or set to <code>0</code> to retain indefinitely, which is the default.</li>
 <li><code>CACHE_TTL_ICS_SOURCE_FAILURE_BACKOFF</code> – Backoff TTL after a source fetch failure (seconds; default: <code>60</code>; minimum: <code>1</code>)</li>
 </ul>
-<p>When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.</p>
+<p>When configured, ICS Combiner will use Redis to cache fetched ICS files to reduce load on upstream calendar providers.
+Cache keys are scoped by namespace so multiple apps can share the same Redis instance. The app also tracks source keys in that namespace and deletes cached primary/LKG entries for calendars removed from <code>ICS_SOURCES</code> on the next combine request.</p>
 
 
 
