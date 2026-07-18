@@ -18,6 +18,13 @@ SourceFetchResult = Tuple[Optional[str], bool, Optional[Calendar]]
 
 MAX_ICS_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# Identify ourselves so upstreams don't single out the default python-requests
+# User-Agent for aggressive rate limiting.
+USER_AGENT = "ics-combiner/1.0 (+https://github.com/amattas/ics-combiner)"
+
+# Upper bound on a Retry-After we will honor as a negative-cache TTL (24h).
+MAX_RETRY_AFTER_SECONDS = 86400
+
 
 _GUID_RE = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
@@ -239,6 +246,37 @@ class ICSCombiner:
         self.cache.set(index_key, sorted(active_keys), ttl=None)
 
     @staticmethod
+    def _failure_backoff_ttl(
+        err: requests.RequestException, failure_backoff_ttl: int
+    ) -> int:
+        """Negative-cache TTL for a failed fetch, honoring Retry-After / HTTP 429.
+
+        - If the error carries a response with a ``Retry-After`` header that
+          parses as a non-negative integer number of seconds, back off for that
+          long (clamped to [failure_backoff_ttl, 24h]). HTTP-date forms are not
+          honored and fall through to the rules below.
+        - Otherwise, if the response is HTTP 429, use the rate-limit backoff.
+        - Otherwise, use the plain failure backoff.
+        """
+        response = getattr(err, "response", None)
+        if response is None:
+            return failure_backoff_ttl
+
+        retry_after = response.headers.get("Retry-After")
+        if retry_after is not None:
+            try:
+                seconds = int(retry_after.strip())
+            except (ValueError, AttributeError):
+                seconds = None
+            if seconds is not None and seconds >= 0:
+                return max(failure_backoff_ttl, min(seconds, MAX_RETRY_AFTER_SECONDS))
+
+        if getattr(response, "status_code", None) == 429:
+            return max(failure_backoff_ttl, CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF)
+
+        return failure_backoff_ttl
+
+    @staticmethod
     def _parse_ics_text(ics_text: str) -> Optional[Calendar]:
         if "BEGIN:VCALENDAR" not in ics_text.upper():
             return None
@@ -306,11 +344,17 @@ class ICSCombiner:
 
             return None, False, None
 
-        def record_failure_and_get_lkg() -> SourceFetchResult:
+        def record_failure_and_get_lkg(
+            ttl: Optional[int] = None,
+        ) -> SourceFetchResult:
             if self.cache and self.cache.is_connected():
                 # Keep failure backoff separate from the source freshness TTL so
                 # no-cache sources do not retry a failing upstream on every request.
-                self.cache.set(cache_key, "", ttl=failure_backoff_ttl)
+                self.cache.set(
+                    cache_key,
+                    "",
+                    ttl=failure_backoff_ttl if ttl is None else ttl,
+                )
                 return get_lkg_from_cache()
 
             return None, False, None
@@ -341,7 +385,12 @@ class ICSCombiner:
 
         # Fetch from network
         try:
-            resp = requests.get(source["Url"], timeout=15, stream=True)
+            resp = requests.get(
+                source["Url"],
+                timeout=15,
+                stream=True,
+                headers={"User-Agent": USER_AGENT},
+            )
             resp.raise_for_status()
             chunks = []
             downloaded = 0
@@ -359,7 +408,8 @@ class ICSCombiner:
             raw_text = b"".join(chunks).decode("utf-8", errors="replace")
         except requests.RequestException as err:
             logger.error("Failed to fetch ICS for source %s: %s", source.get("Id"), err)
-            return record_failure_and_get_lkg()
+            backoff_ttl = self._failure_backoff_ttl(err, failure_backoff_ttl)
+            return record_failure_and_get_lkg(ttl=backoff_ttl)
 
         ics_text = self._normalize_ics_text(raw_text)
         parsed_ics = self._parse_ics_text(ics_text)

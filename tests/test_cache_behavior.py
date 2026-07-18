@@ -1,4 +1,6 @@
+import pytest
 import requests
+from requests.structures import CaseInsensitiveDict
 from icalendar import Calendar
 
 from src.services.cache import (
@@ -34,11 +36,15 @@ INVALID_ICS = "<html>temporary upstream error</html>"
 
 
 class FakeResponse:
-    def __init__(self, text: str):
+    def __init__(self, text: str = "", status_code: int = 200, headers=None):
         self.text = text
         self._content = text.encode("utf-8")
+        self.status_code = status_code
+        self.headers = CaseInsensitiveDict(headers or {})
 
     def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} error", response=self)
         return None
 
     def iter_content(self, chunk_size=8192, decode_unicode=False):
@@ -477,3 +483,62 @@ def test_invalid_primary_cache_entry_is_deleted_and_refetched(monkeypatch):
     assert is_stale is False
     assert cache.deleted == [cache_key]
     assert calls == [(source["Url"], 15)]
+
+
+@pytest.mark.parametrize(
+    "status_code, retry_after, expected_ttl",
+    [
+        # Non-429 failure with no Retry-After falls back to plain backoff.
+        (500, None, CacheTTL.ICS_SOURCE_FAILURE_BACKOFF),
+        # Retry-After in seconds is honored verbatim.
+        (429, "1800", 1800),
+        # Retry-After larger than the 24h cap is clamped.
+        (429, "999999", 86400),
+        # HTTP 429 without Retry-After uses the rate-limit backoff.
+        (429, None, CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF),
+        # Unparseable (HTTP-date) Retry-After falls back to rate-limit backoff.
+        (
+            429,
+            "Wed, 21 Oct 2026 07:28:00 GMT",
+            CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF,
+        ),
+    ],
+)
+def test_fetch_failure_negative_cache_ttl_honors_retry_after_and_429(
+    monkeypatch, status_code, retry_after, expected_ttl
+):
+    cache = MemoryCache()
+    source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
+    combiner = ICSCombiner(cache=cache)
+    cache_key = combiner._cache_key_for_source(source)
+
+    headers = {"Retry-After": retry_after} if retry_after is not None else {}
+
+    monkeypatch.setattr(
+        "src.services.ics_combiner.requests.get",
+        lambda *_args, **_kwargs: FakeResponse(
+            status_code=status_code, headers=headers
+        ),
+    )
+
+    combiner.fetch_source_ics(source)
+
+    assert (cache_key, "", expected_ttl) in cache.set_calls
+
+
+def test_fetch_sends_identifying_user_agent_header(monkeypatch):
+    captured = {}
+    source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
+    combiner = ICSCombiner(cache=None)
+
+    def capture_get(*_args, **kwargs):
+        captured.update(kwargs)
+        return FakeResponse(VALID_ICS)
+
+    monkeypatch.setattr("src.services.ics_combiner.requests.get", capture_get)
+
+    combiner.fetch_source_ics(source)
+
+    assert captured["headers"]["User-Agent"] == (
+        "ics-combiner/1.0 (+https://github.com/amattas/ics-combiner)"
+    )

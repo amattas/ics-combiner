@@ -269,3 +269,7 @@ class CacheTTL:
     ICS_SOURCE_FAILURE_BACKOFF = _get_cache_ttl(
         "ICS_SOURCE_FAILURE_BACKOFF", 60, minimum=1
     )
+    # Backoff TTL for HTTP 429 responses that lack a Retry-After header
+    ICS_SOURCE_RATE_LIMIT_BACKOFF = _get_cache_ttl(
+        "ICS_SOURCE_RATE_LIMIT_BACKOFF", 3600, minimum=1
+    )
