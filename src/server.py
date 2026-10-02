@@ -10,11 +10,13 @@ import hmac
 import hashlib
 import asyncio
 import logging
+import threading
 import time
 from typing import Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 
@@ -98,6 +100,10 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityMiddleware)
 
     state = {"combiner": None, "last_redis_attempt": 0.0}
+    # Combine requests run in the threadpool. Serialize them so concurrent
+    # requests don't race service initialization or stampede upstream feeds
+    # on a cold cache; later requests then hit the cache the first one filled.
+    combine_lock = threading.Lock()
 
     def ensure_services_initialized():
         if state["combiner"] is None:
@@ -121,6 +127,12 @@ def create_app() -> FastAPI:
                     logger.debug("Redis retry failed: %s", e)
 
     def _handle_combine_request(
+        request: Request, show: Optional[str], hide: Optional[str]
+    ) -> Response:
+        with combine_lock:
+            return _combine_locked(request, show, hide)
+
+    def _combine_locked(
         request: Request, show: Optional[str], hide: Optional[str]
     ) -> Response:
         ensure_services_initialized()
@@ -186,7 +198,8 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(30)
                 return Response(status_code=404)
 
-            return _handle_combine_request(request, show, hide)
+            # Blocking upstream fetches must not stall the event loop (health probes).
+            return await run_in_threadpool(_handle_combine_request, request, show, hide)
 
         @app.exception_handler(404)
         async def not_found(request: Request, exc: HTTPException):
@@ -220,7 +233,8 @@ def create_app() -> FastAPI:
             show: Optional[str] = Query(default=None),
             hide: Optional[str] = Query(default=None),
         ) -> Response:
-            return _handle_combine_request(request, show, hide)
+            # Blocking upstream fetches must not stall the event loop (health probes).
+            return await run_in_threadpool(_handle_combine_request, request, show, hide)
 
     return app
 
