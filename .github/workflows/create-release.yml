@@ -1,54 +1,90 @@
 name: Create Release Draft
 
+# Manual-only: run from the Actions tab, choosing the release/X.Y.Z branch in "Use workflow from".
+#   1. tags the release branch HEAD with an annotated X.Y.Z tag and pushes it
+#      (fails if X.Y.Z already points at another commit; a rerun is a no-op when
+#      it already points at HEAD),
+#   2. creates a DRAFT GitHub release for that tag (skipped if one exists),
+#   3. calls docs.yml, which republishes the versioned docs from main + tags.
+# docker-build-push.yml (run against release/X.Y.Z) publishes the X.Y.Z image.
 on:
-  create:
-    branches:
-      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  create-draft-release:
-    name: Create Draft Release
+  create-release:
+    name: Tag and Create Draft Release
     runs-on: ubuntu-latest
     # Only act on release/* branches, but skip release/latest.
     if: startsWith(github.ref, 'refs/heads/release/') && !endsWith(github.ref, '/latest')
     permissions:
-      contents: write
+      contents: write  # push the X.Y.Z tag and create the draft release
 
     steps:
       - name: Extract version from branch name
         id: extract_version
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          BRANCH_NAME="${{ github.ref_name }}"
           VERSION="${BRANCH_NAME#release/}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Branch '$BRANCH_NAME' is not release/X.Y.Z"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # all tags, to check for an existing X.Y.Z
+
+      - name: Create and push the release tag
+        env:
+          TAG: ${{ steps.extract_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          if git rev-parse -q --verify "refs/tags/v$TAG" >/dev/null; then
+            echo "::error::Legacy tag v$TAG exists; X.Y.Z and vX.Y.Z would publish the same docs version"
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            TAG_SHA="$(git rev-parse "refs/tags/$TAG^{commit}")"
+            if [[ "$TAG_SHA" != "$HEAD_SHA" ]]; then
+              echo "::error::Tag $TAG already points at $TAG_SHA, not release branch HEAD $HEAD_SHA"
+              exit 1
+            fi
+            echo "Tag $TAG already points at HEAD ($HEAD_SHA)"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG" "$HEAD_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "Tagged $HEAD_SHA as $TAG"
 
       - name: Check if release already exists
         id: check_release
-        run: |
-          TAG="v${{ steps.extract_version.outputs.version }}"
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Release $TAG already exists, skipping creation"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release $TAG does not exist, will create"
-          fi
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Checkout repository
-        if: steps.check_release.outputs.exists == 'false'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
+          TAG: ${{ steps.extract_version.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists, skipping creation"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist, will create"
+          fi
 
       - name: Generate release notes
         if: steps.check_release.outputs.exists == 'false'
         id: release_notes
+        env:
+          VERSION: ${{ steps.extract_version.outputs.version }}
         run: |
-          VERSION="${{ steps.extract_version.outputs.version }}"
-
           # Treat versions with a hyphen suffix as pre-releases (e.g., 1.2.3-beta)
           if [[ "$VERSION" =~ -[a-zA-Z] ]]; then
             IS_PRERELEASE="true"
@@ -58,7 +94,7 @@ jobs:
             RELEASE_TYPE="Release"
           fi
 
-          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
           cat > release_notes.md <<EOF
           ## ics-combiner $VERSION
@@ -77,8 +113,8 @@ jobs:
           $VERSION
           \`\`\`
 
-          The image is pushed by the \`docker-build-push\` workflow when the
-          \`release/$VERSION\` branch is created.
+          The image is pushed by the \`docker-build-push\` workflow when it is
+          run manually against the \`release/$VERSION\` branch.
 
           ### Release Checklist
 
@@ -88,36 +124,35 @@ jobs:
 
           ---
 
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/...v$VERSION
+          **Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/...$VERSION
           EOF
 
           echo "Release notes generated for $VERSION ($RELEASE_TYPE)"
 
       - name: Create draft release
         if: steps.check_release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.extract_version.outputs.version }}
+          IS_PRERELEASE: ${{ steps.release_notes.outputs.is_prerelease }}
         run: |
-          TAG="${{ steps.extract_version.outputs.tag }}"
-          VERSION="${{ steps.extract_version.outputs.version }}"
-          IS_PRERELEASE="${{ steps.release_notes.outputs.is_prerelease }}"
-
-          PRERELEASE_FLAG=""
+          PRERELEASE_FLAG=()
           if [[ "$IS_PRERELEASE" == "true" ]]; then
-            PRERELEASE_FLAG="--prerelease"
+            PRERELEASE_FLAG=(--prerelease)
           fi
 
           gh release create "$TAG" \
             --draft \
-            $PRERELEASE_FLAG \
-            --title "ics-combiner $VERSION" \
-            --notes-file release_notes.md \
-            --target "${{ github.ref_name }}"
+            --verify-tag \
+            "${PRERELEASE_FLAG[@]}" \
+            --title "ics-combiner $TAG" \
+            --notes-file release_notes.md
 
-          echo "Draft release created: $TAG"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          echo "Draft release created for tag $TAG"
+          echo "View at: https://github.com/$GITHUB_REPOSITORY/releases"
 
-      - name: Comment on success
-        if: steps.check_release.outputs.exists == 'false'
-        run: |
-          echo "✓ Draft release created for ${{ steps.extract_version.outputs.tag }}"
-          echo "✓ View at: https://github.com/${{ github.repository }}/releases"
+  docs:
+    needs: create-release
+    permissions:
+      contents: write  # docs.yml pushes the gh-pages branch
+    uses: ./.github/workflows/docs.yml

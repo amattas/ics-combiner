@@ -1,9 +1,7 @@
 name: Build and Push Docker Image
 
+# Manual-only: run from the Actions tab; the image tag comes from the branch chosen in "Use workflow from".
 on:
-  push:
-    branches:
-      - release/*
   workflow_dispatch:
 
 env:
