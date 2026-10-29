@@ -269,7 +269,7 @@ def test_docs_workflow_publishes_gh_pages_branch_from_main() -> None:
     publish = next(s for s in steps if s.get("name") == "Publish")
 
     # PyYAML reads the bare `on:` key as boolean True.
-    assert set(workflow[True]) == {"workflow_dispatch", "workflow_call"}
+    assert set(workflow[True]) == {"push", "workflow_dispatch", "workflow_call"}
     assert workflow["permissions"] == {"contents": "write"}
     assert workflow["concurrency"] == {
         "group": "docs-gh-pages",
