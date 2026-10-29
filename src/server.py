@@ -4,21 +4,20 @@ ICS Combiner FastAPI app with dual-factor path authentication.
 Exposes a health endpoint and an authenticated ICS combine endpoint.
 """
 
+import asyncio
+import hashlib
+import hmac
+import logging
 import os
 import sys
-import hmac
-import hashlib
-import asyncio
-import logging
 import threading
 import time
-from typing import Optional, List
 
-from fastapi import FastAPI, Request, HTTPException, Query
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
-from dotenv import load_dotenv
 
 from .services.cache import RedisCache
 from .services.ics_combiner import ICSCombiner
@@ -52,7 +51,7 @@ def _calc_api_hash(key: str, salt: str) -> str:
     return hashlib.sha256(hash_input.encode()).hexdigest()
 
 
-def _parse_ids(value: Optional[str]) -> Optional[List[int]]:
+def _parse_ids(value: str | None) -> list[int] | None:
     if not value:
         return None
     ids = []
@@ -134,13 +133,13 @@ def create_app() -> FastAPI:
                     logger.debug("Redis retry failed: %s", e)
 
     def _handle_combine_request(
-        request: Request, show: Optional[str], hide: Optional[str]
+        request: Request, show: str | None, hide: str | None
     ) -> Response:
         with combine_lock:
             return _combine_locked(request, show, hide)
 
     def _combine_locked(
-        request: Request, show: Optional[str], hide: Optional[str]
+        request: Request, show: str | None, hide: str | None
     ) -> Response:
         ensure_services_initialized()
         combiner: ICSCombiner = state["combiner"]
@@ -188,10 +187,10 @@ def create_app() -> FastAPI:
             request: Request,
             key: str,
             hash: str,
-            show: Optional[str] = Query(
+            show: str | None = Query(
                 default=None, description="Comma-separated IDs to include"
             ),
-            hide: Optional[str] = Query(
+            hide: str | None = Query(
                 default=None, description="Comma-separated IDs to exclude"
             ),
         ) -> Response:
@@ -237,8 +236,8 @@ def create_app() -> FastAPI:
         @app.get("/ics/combined")
         async def combined_noauth(
             request: Request,
-            show: Optional[str] = Query(default=None),
-            hide: Optional[str] = Query(default=None),
+            show: str | None = Query(default=None),
+            hide: str | None = Query(default=None),
         ) -> Response:
             # Blocking upstream fetches must not stall the event loop (health probes).
             return await run_in_threadpool(_handle_combine_request, request, show, hide)

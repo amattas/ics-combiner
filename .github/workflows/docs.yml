@@ -5,19 +5,18 @@ name: Docs
 #   dev = main, X.Y = newest patch tag of each documented minor line,
 #   latest = highest stable release (the site default; dev until a release exists).
 # Pages serves gh-pages only for public repos; private repos build gh-pages but keep Pages disabled.
-# Triggers: push to main / release/**, manual dispatch, and workflow_call (release.yml
+# Triggers: push to main, manual dispatch, and workflow_call (release.yml
 # calls it after tagging X.Y.Z, passing `version`). Always builds from main; the
 # published versions come from the tags, so `version` is informational only.
 on:
   push:
     branches:
       - main
-      - 'release/**'
   workflow_dispatch:
   workflow_call:
     inputs:
       version:
-        description: Docs version to publish (the release tag); empty derives it from the branch
+        description: Release version to publish (set by release.yml after tagging); empty publishes from main only
         type: string
         default: ""
 

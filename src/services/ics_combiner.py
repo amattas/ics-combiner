@@ -1,20 +1,21 @@
+import hashlib
+import json
+import logging
 import os
 import re
-import json
 import uuid
-import hashlib
-import logging
-import requests
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
+
+import requests
 from icalendar import Calendar, Event
 
-from .cache import RedisCache, CacheTTL
+from .cache import CacheTTL, RedisCache
 
 logger = logging.getLogger(__name__)
 
-SourceFetchResult = Tuple[Optional[str], bool, Optional[Calendar]]
+SourceFetchResult = tuple[str | None, bool, Calendar | None]
 
 MAX_ICS_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -34,8 +35,8 @@ _GUID_RE = re.compile(
 class ICSCombiner:
     def __init__(
         self,
-        cache: Optional[RedisCache] = None,
-        cache_namespace: Optional[str] = None,
+        cache: RedisCache | None = None,
+        cache_namespace: str | None = None,
     ):
         self.cache = cache
         self.cache_namespace = cache_namespace or self._cache_namespace_from_env()
@@ -110,7 +111,7 @@ class ICSCombiner:
         return pattern.sub(_replace, ics_text)
 
     @staticmethod
-    def _parse_datetime_or_date(value: str) -> Optional[object]:
+    def _parse_datetime_or_date(value: str) -> object | None:
         """
         Best-effort parsing for non‑RFC5545 datetime/date strings that appear in
         some tolerant ICS feeds (for example: '2025-11-01 13:30:00+00:00').
@@ -134,7 +135,7 @@ class ICSCombiner:
             return None
 
     @staticmethod
-    def _validate_sources(calendars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _validate_sources(calendars: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen_ids: set[int] = set()
         validated = []
         for i, cal in enumerate(calendars):
@@ -177,7 +178,7 @@ class ICSCombiner:
         return validated
 
     @staticmethod
-    def load_sources_from_env() -> Tuple[List[Dict[str, Any]], str, int]:
+    def load_sources_from_env() -> tuple[list[dict[str, Any]], str, int]:
         sources_raw = os.getenv("ICS_SOURCES") or os.getenv("CalendarSources")
         if not sources_raw:
             raise ValueError("ICS_SOURCES (or CalendarSources) env var is required")
@@ -195,7 +196,7 @@ class ICSCombiner:
         )
         return calendars, name, days_history
 
-    def _get_source_ttl(self, source: Dict[str, Any]) -> int:
+    def _get_source_ttl(self, source: dict[str, Any]) -> int:
         # Source-level override from source configuration JSON
         if isinstance(source.get("RefreshSeconds"), int):
             return max(0, int(source["RefreshSeconds"]))
@@ -204,25 +205,25 @@ class ICSCombiner:
         return CacheTTL.ICS_SOURCE_DEFAULT
 
     @staticmethod
-    def _source_cache_id(source: Dict[str, Any]) -> Tuple[Any, str]:
+    def _source_cache_id(source: dict[str, Any]) -> tuple[Any, str]:
         sid = source.get("Id", "unknown")
         url = source.get("Url", "")
         # Use SHA-256 for cache key derivation to avoid weak-hash warnings
         url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest() if url else "no_url"
         return sid, url_hash
 
-    def _legacy_cache_key_for_source(self, source: Dict[str, Any]) -> str:
+    def _legacy_cache_key_for_source(self, source: dict[str, Any]) -> str:
         sid, url_hash = self._source_cache_id(source)
         return f"ics:source:{sid}:{url_hash}"
 
-    def _cache_key_for_source(self, source: Dict[str, Any]) -> str:
+    def _cache_key_for_source(self, source: dict[str, Any]) -> str:
         sid, url_hash = self._source_cache_id(source)
         return f"ics:{self.cache_namespace}:source:{sid}:{url_hash}"
 
     def _source_index_key(self) -> str:
         return f"ics:{self.cache_namespace}:sources"
 
-    def _track_configured_sources(self, calendars: List[Dict[str, Any]]) -> None:
+    def _track_configured_sources(self, calendars: list[dict[str, Any]]) -> None:
         if not self.cache or not self.cache.is_connected():
             return
 
@@ -277,7 +278,7 @@ class ICSCombiner:
         return failure_backoff_ttl
 
     @staticmethod
-    def _parse_ics_text(ics_text: str) -> Optional[Calendar]:
+    def _parse_ics_text(ics_text: str) -> Calendar | None:
         if "BEGIN:VCALENDAR" not in ics_text.upper():
             return None
 
@@ -286,7 +287,7 @@ class ICSCombiner:
         except Exception:
             return None
 
-    def _fetch_source_ics(self, source: Dict[str, Any]) -> SourceFetchResult:
+    def _fetch_source_ics(self, source: dict[str, Any]) -> SourceFetchResult:
         """Fetch and parse a single ICS source, using Redis cache if available.
 
         Returns (ics_text, is_stale, parsed_calendar) where is_stale indicates
@@ -303,13 +304,13 @@ class ICSCombiner:
         ttl = self._get_source_ttl(source)
         failure_backoff_ttl = CacheTTL.ICS_SOURCE_FAILURE_BACKOFF
 
-        def cache_key_candidates() -> List[Tuple[str, bool]]:
+        def cache_key_candidates() -> list[tuple[str, bool]]:
             candidates = [(cache_key, True)]
             if legacy_cache_key != cache_key:
                 candidates.append((legacy_cache_key, False))
             return candidates
 
-        def lkg_key_candidates() -> List[Tuple[str, bool]]:
+        def lkg_key_candidates() -> list[tuple[str, bool]]:
             candidates = [(lkg_key, True)]
             if legacy_lkg_key != lkg_key:
                 candidates.append((legacy_lkg_key, False))
@@ -345,7 +346,7 @@ class ICSCombiner:
             return None, False, None
 
         def record_failure_and_get_lkg(
-            ttl: Optional[int] = None,
+            ttl: int | None = None,
         ) -> SourceFetchResult:
             if self.cache and self.cache.is_connected():
                 # Keep failure backoff separate from the source freshness TTL so
@@ -426,7 +427,7 @@ class ICSCombiner:
 
         return ics_text, False, parsed_ics
 
-    def fetch_source_ics(self, source: Dict[str, Any]) -> Tuple[Optional[str], bool]:
+    def fetch_source_ics(self, source: dict[str, Any]) -> tuple[str | None, bool]:
         """Fetch a single ICS source, using Redis cache if available.
 
         Returns (ics_text, is_stale) where is_stale indicates the data came
@@ -437,11 +438,11 @@ class ICSCombiner:
 
     def combine(
         self,
-        calendars: List[Dict[str, Any]],
+        calendars: list[dict[str, Any]],
         name: str,
         days_history: int,
-        show: Optional[List[int]] = None,
-        hide: Optional[List[int]] = None,
+        show: list[int] | None = None,
+        hide: list[int] | None = None,
     ) -> bytes:
         today = self._today_utc_date()
 
@@ -450,18 +451,16 @@ class ICSCombiner:
         combined_cal.add("version", "2.0")
         combined_cal.add("x-wr-calname", name)
 
-        temp_cal: Dict[str, Event] = {}
+        temp_cal: dict[str, Event] = {}
         seen_tz: set[str] = set()
 
         self._track_configured_sources(calendars)
 
-        def should_include(cal: Dict[str, Any]) -> bool:
+        def should_include(cal: dict[str, Any]) -> bool:
             cid = cal.get("Id")
             if show is not None and cid not in show:
                 return False
-            if hide is not None and cid in hide:
-                return False
-            return True
+            return not (hide is not None and cid in hide)
 
         for calendar in calendars:
             if calendar.get("Id") is None:
@@ -607,7 +606,7 @@ class ICSCombiner:
                         dur_prop = copied_event.get("DURATION")
                         dtend_prop = copied_event.get("DTEND")
 
-                        original_duration: Optional[timedelta] = None
+                        original_duration: timedelta | None = None
                         if dur_prop is not None:
                             try:
                                 original_duration = copied_event.decoded("DURATION")
