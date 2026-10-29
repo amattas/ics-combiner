@@ -142,3 +142,15 @@ __azurite_db*__.json
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Local tooling / AI
+*.bak
+.env.*
+!.env.example
+.claude/settings.local.json
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.superpowers/
+.playwright-mcp/
+.ruff_cache/
+!tests/fixtures/*.ics
