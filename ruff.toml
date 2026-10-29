@@ -1,0 +1,8 @@
+[lint]
+# BLE001: the MCP server and combiner deliberately catch Exception at feed/tool
+# boundaries, log it, and continue so one bad source cannot crash the server.
+extend-ignore = ["BLE001"]
+
+[lint.per-file-ignores]
+# Tests put scripts/ on sys.path before importing the modules under test.
+"tests/docs/*.py" = ["E402"]

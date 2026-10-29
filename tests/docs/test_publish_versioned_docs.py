@@ -16,8 +16,8 @@ import yaml  # type: ignore[import-untyped]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-import docs_versioning  # noqa: E402
-import publish_versioned_docs  # noqa: E402
+import docs_versioning
+import publish_versioned_docs
 
 MKDOCS_WITH_MIKE = "site_url: https://x/\nextra:\n  version:\n    provider: mike\n"
 
@@ -206,7 +206,9 @@ def test_prepares_legacy_docusaurus_release_with_optional_api_reference(
     monkeypatch.setattr(docs_versioning, "_git_path_exists", git_path_exists)
     monkeypatch.setattr(docs_versioning, "_git_files", git_files)
     monkeypatch.setattr(docs_versioning, "_git_file", lambda tag, path: tree[path])
-    monkeypatch.setattr(docs_versioning, "generate_api_reference", generate_api_reference)
+    monkeypatch.setattr(
+        docs_versioning, "generate_api_reference", generate_api_reference
+    )
     release = docs_versioning.parse_semver_tag("1.0.1")
     assert release is not None
 
@@ -231,17 +233,25 @@ def test_prepares_legacy_docusaurus_release_with_optional_api_reference(
 def test_publish_deploys_release_aliases_with_alias_updates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    plan = docs_versioning.plan_deployments(docs_versioning.select_latest_revisions(["1.0.1", "1.1.0"]))
+    plan = docs_versioning.plan_deployments(
+        docs_versioning.select_latest_revisions(["1.0.1", "1.1.0"])
+    )
     calls: list[tuple[str, ...]] = []
 
-    def mike(subcommand: str, config: Path, branch: str, remote: str, *args: str) -> None:
+    def mike(
+        subcommand: str, config: Path, branch: str, remote: str, *args: str
+    ) -> None:
         calls.append((subcommand, *args))
 
     monkeypatch.setattr(publish_versioned_docs, "_plan", lambda: plan)
     monkeypatch.setattr(importlib.util, "find_spec", lambda _: True)
     monkeypatch.setattr(publish_versioned_docs, "_reset_publish_branch", lambda _: None)
-    monkeypatch.setattr(publish_versioned_docs, "generate_api_reference", lambda _: None)
-    monkeypatch.setattr(publish_versioned_docs, "prepare_release", lambda release, path: path / "z.toml")
+    monkeypatch.setattr(
+        publish_versioned_docs, "generate_api_reference", lambda _: None
+    )
+    monkeypatch.setattr(
+        publish_versioned_docs, "prepare_release", lambda release, path: path / "z.toml"
+    )
     monkeypatch.setattr(publish_versioned_docs, "_mike", mike)
 
     publish_versioned_docs.publish("docs-version-test", "origin", push=False)
