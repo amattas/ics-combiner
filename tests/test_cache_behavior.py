@@ -1,7 +1,7 @@
 import pytest
 import requests
-from requests.structures import CaseInsensitiveDict
 from icalendar import Calendar
+from requests.structures import CaseInsensitiveDict
 
 from src.services.cache import (
     CacheStats,
@@ -45,7 +45,6 @@ class FakeResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise requests.HTTPError(f"{self.status_code} error", response=self)
-        return None
 
     def iter_content(self, chunk_size=8192, decode_unicode=False):
         for i in range(0, len(self._content), chunk_size):
