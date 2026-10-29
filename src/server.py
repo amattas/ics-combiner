@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ._version import __version__
 from .services.cache import RedisCache
 from .services.ics_combiner import ICSCombiner
 
@@ -95,7 +96,13 @@ def create_app() -> FastAPI:
     if api_key and len(api_key) < 16:
         logger.warning("API key is short; consider a longer key.")
 
-    app = FastAPI(title="ICS Combiner", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="ICS Combiner",
+        version=__version__,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.add_middleware(SecurityMiddleware)
 
     state = {"combiner": None, "last_redis_attempt": 0.0}
