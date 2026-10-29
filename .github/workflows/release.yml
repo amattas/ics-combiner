@@ -1,0 +1,40 @@
+# Release: Actions -> Release -> enter a bare-semver version (e.g. 1.4.2) that
+# pyproject.toml on main already carries. Tags main, creates the GitHub Release,
+# builds and pushes the multi-arch image, then publishes the docs for that version.
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (bare semver, e.g. 1.4.2)
+        required: true
+        type: string
+jobs:
+  release:
+    uses: mattas-net/.github/.github/workflows/create-release.yml@main
+    permissions:
+      contents: write
+      actions: read
+    with:
+      version: ${{ inputs.version }}
+      manifest: pyproject.toml
+      require-workflow: Python package
+  image:
+    needs: release
+    uses: mattas-net/.github/.github/workflows/docker-build-push.yml@main
+    permissions:
+      contents: read
+      packages: write
+    with:
+      ref: ${{ inputs.version }}
+      verify: false
+      platforms: linux/amd64,linux/arm64
+  docs:
+    needs: image
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    with:
+      version: ${{ inputs.version }}
