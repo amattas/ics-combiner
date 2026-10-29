@@ -1,15 +1,34 @@
+# Checks: automatic on every push to main. On pull requests the run is created
+# but waits (using no runner minutes) at the `approve` job until a required
+# reviewer approves it in the `approval` environment; approve from the PR's
+# checks list or the run page. Manual dispatch runs the checks directly.
 name: Python package
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  approve:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    environment: approval
+    steps:
+      - run: echo "Checks approved by ${GITHUB_TRIGGERING_ACTOR}"
+
   build:
+    needs: approve
+    # Runs when approve passed or was skipped (push/dispatch); a rejected approval stops it.
+    if: always() && needs.approve.result != 'failure' && needs.approve.result != 'cancelled'
     runs-on: ubuntu-latest
     strategy:
       matrix:
