@@ -19,9 +19,9 @@ from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ._version import __version__
 from .services.cache import RedisCache
 from .services.ics_combiner import ICSCombiner
-from ._version import __version__
 
 # Load environment variables
 load_dotenv(".env.local")
