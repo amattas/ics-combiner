@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 
 from .services.cache import RedisCache
 from .services.ics_combiner import ICSCombiner
+from ._version import __version__
 
 # Load environment variables
 load_dotenv(".env.local")
@@ -96,7 +97,13 @@ def create_app() -> FastAPI:
     if api_key and len(api_key) < 16:
         logger.warning("API key is short; consider a longer key.")
 
-    app = FastAPI(title="ICS Combiner", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="ICS Combiner",
+        version=__version__,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.add_middleware(SecurityMiddleware)
 
     state = {"combiner": None, "last_redis_attempt": 0.0}
