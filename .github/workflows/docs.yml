@@ -1,5 +1,13 @@
 name: Docs
 
+# Docs — build every documented version with Zensical and publish the versioned
+# site (mike) to the gh-pages branch via scripts/publish_versioned_docs.py:
+#   dev = main, X.Y = newest patch tag of each documented minor line,
+#   latest = highest stable release (the site default; dev until a release exists).
+# Pages serves gh-pages only for public repos; private repos build gh-pages but keep Pages disabled.
+# Triggers: push to main / release/**, manual dispatch, and workflow_call (release.yml
+# calls it after tagging X.Y.Z, passing `version`). Always builds from main; the
+# published versions come from the tags, so `version` is informational only.
 on:
   push:
     branches:
@@ -14,134 +22,44 @@ on:
         default: ""
 
 permissions:
-  contents: write  # allow mike to push to gh-pages
-  pages: write     # allow deployment to GitHub Pages
-  id-token: write  # required by actions/deploy-pages
+  contents: write  # publish script force-pushes the gh-pages branch
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: docs-gh-pages  # distinct from any caller group; never cancel a publish mid-flight
+  cancel-in-progress: false
 
 jobs:
-  deploy-docs:
+  docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Fetch gh-pages branch (if exists)
-        run: |
-          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            git fetch origin gh-pages:gh-pages
-          else
-            echo "gh-pages branch does not exist yet; will be created by mike"
-          fi
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          fetch-depth: 0  # every release tag is rebuilt from its own sources
+          ref: main
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.13'
 
-      - name: Install dependencies
+      - name: Install documentation tools
+        run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
+
+      - name: Configure Git author
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install mkdocs mkdocs-material "mkdocstrings[python]" mike
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Determine version and alias
-        id: version
+      - name: Configure publish credentials
         env:
-          INPUT_VERSION: ${{ inputs.version }}
+          GH_PAGES_TOKEN: ${{ github.token }}
         run: |
-          BRANCH_NAME="${{ github.ref_name }}"
+          git remote set-url origin "https://x-access-token:${GH_PAGES_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-          if [[ -n "$INPUT_VERSION" ]]; then
-            {
-              echo "version=$INPUT_VERSION"
-              echo "alias="
-              echo "update_aliases=false"
-              echo "set_default=false"
-            } >> "$GITHUB_OUTPUT"
-          elif [[ "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == "master" ]]; then
-            echo "version=dev" >> $GITHUB_OUTPUT
-            echo "alias=" >> $GITHUB_OUTPUT
-            echo "update_aliases=false" >> $GITHUB_OUTPUT
-            echo "set_default=false" >> $GITHUB_OUTPUT
-          elif [[ "$BRANCH_NAME" == "release/latest" ]]; then
-            echo "version=latest" >> $GITHUB_OUTPUT
-            echo "alias=" >> $GITHUB_OUTPUT
-            echo "update_aliases=false" >> $GITHUB_OUTPUT
-            echo "set_default=true" >> $GITHUB_OUTPUT
-          elif [[ "$BRANCH_NAME" =~ ^release/(.+)$ ]]; then
-            VERSION=${BASH_REMATCH[1]}
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "alias=" >> $GITHUB_OUTPUT
-            echo "update_aliases=false" >> $GITHUB_OUTPUT
-            echo "set_default=false" >> $GITHUB_OUTPUT
-          else
-            echo "Unknown branch: $BRANCH_NAME"
-            exit 1
-          fi
-
-      - name: Deploy docs with mike (push to gh-pages)
+      - name: Publish
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          ALIAS="${{ steps.version.outputs.alias }}"
-          UPDATE_ALIASES="${{ steps.version.outputs.update_aliases }}"
-
-          # If a version exists with the same name as the alias,
-          # delete it first to free the alias name.
-          if [[ -n "$ALIAS" ]]; then
-            mike delete --push "$ALIAS" || true
-          fi
-
-          # For dev builds, clean up old dev-* versions so only one dev entry exists
-          if [[ "$VERSION" == "dev" ]]; then
-            OLD_DEVS="$(mike list -j | python -c 'import json,sys; v=json.load(sys.stdin); print(" ".join(d["version"] for d in v if d["version"].startswith("dev-")))')"
-            if [[ -n "$OLD_DEVS" ]]; then
-              mike delete --push $OLD_DEVS || true
-            fi
-          fi
-
-          if [[ "$UPDATE_ALIASES" == "true" && -n "$ALIAS" && "$ALIAS" != "$VERSION" ]]; then
-            mike deploy --push --update-aliases "$VERSION" "$ALIAS"
-          else
-            mike deploy --push "$VERSION"
-          fi
-
-          if [[ "${{ steps.version.outputs.set_default }}" == "true" ]]; then
-            mike set-default --push "$VERSION"
-          fi
-
-          echo "Deployed docs for version: $VERSION (alias: ${ALIAS:-none})"
-
-      - name: Fetch latest gh-pages branch
-        run: |
-          git fetch origin gh-pages:gh-pages
-
-      - name: Prepare Pages artifact from gh-pages
-        run: |
-          rm -rf gh-pages-site
-          git worktree add gh-pages-site gh-pages
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: gh-pages-site
-
-  deploy:
-    needs: deploy-docs
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          if [[ -n "$RELEASE_VERSION" ]]; then echo "Called for release $RELEASE_VERSION"; fi
+          python scripts/publish_versioned_docs.py --push

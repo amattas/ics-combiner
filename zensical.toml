@@ -1,0 +1,51 @@
+# Zensical configuration — https://zensical.org/docs/setup/basics/
+# Versioned with the Zensical fork of mike: scripts/publish_versioned_docs.py
+# publishes main as "dev" and each documented release line from the git tags,
+# with "latest" pointing at the highest stable release.
+
+[project]
+site_name = "ICS Combiner"
+site_description = "FastAPI service for combining multiple iCalendar feeds into a single calendar"
+site_url = "https://amattas.github.io/ics-combiner/"
+repo_url = "https://github.com/amattas/ics-combiner"
+repo_name = "amattas/ics-combiner"
+docs_dir = "docs"
+site_dir = "site"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Getting Started" = "getting-started.md" },
+  { "Configuration" = "configuration.md" },
+  { "Endpoints" = "endpoints.md" },
+  { "API Reference" = "api.md" },
+]
+
+[project.extra.version]
+provider = "mike"
+default = "latest"
+
+[project.theme]
+features = [
+  "navigation.sections",
+  "navigation.top",
+  "content.code.copy",
+]
+
+# API reference: mkdocstrings renders the ::: blocks in docs/api.md from src/.
+[project.plugins.mkdocstrings]
+default_handler = "python"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+show_source = false
+members_order = "source"
+show_if_no_docstring = true
+show_signature_annotations = true
+separate_signature = true
+merge_init_into_class = true
+show_root_heading = true
+show_root_full_path = false
+filters = ["!^_"]
