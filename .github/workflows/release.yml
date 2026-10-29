@@ -11,7 +11,7 @@ on:
         type: string
 jobs:
   release:
-    uses: mattas-net/.github/.github/workflows/create-release.yml@main
+    uses: amattas/.github/.github/workflows/create-release.yml@main
     permissions:
       contents: write
       actions: read
@@ -21,7 +21,7 @@ jobs:
       require-workflow: Python package
   image:
     needs: release
-    uses: mattas-net/.github/.github/workflows/docker-build-push.yml@main
+    uses: amattas/.github/.github/workflows/docker-build-push.yml@main
     permissions:
       contents: read
       packages: write

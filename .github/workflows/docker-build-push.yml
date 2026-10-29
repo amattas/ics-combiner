@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   image:
-    uses: mattas-net/.github/.github/workflows/docker-build-push.yml@main
+    uses: amattas/.github/.github/workflows/docker-build-push.yml@main
     permissions:
       contents: read
       packages: write
