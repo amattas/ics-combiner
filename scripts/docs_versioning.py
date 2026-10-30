@@ -149,7 +149,10 @@ def plan_deployments(releases: Sequence[ReleaseVersion]) -> list[Deployment]:
     equal a ``major.minor`` version, ``dev`` or ``latest``.
     """
     ordered = sorted(releases, key=lambda release: (release.major, release.minor))
-    plan = [Deployment(r.minor_version, r.revision, aliases=(r.tag,), release=r) for r in ordered]
+    plan = [
+        Deployment(r.minor_version, r.revision, aliases=(r.tag,), release=r)
+        for r in ordered
+    ]
     if plan:
         plan[-1] = replace(plan[-1], aliases=(*plan[-1].aliases, LATEST_ALIAS))
     plan.append(Deployment(DEV_VERSION, DEV_VERSION))

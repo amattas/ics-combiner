@@ -215,9 +215,9 @@ class TestFullCombineRegression:
         cal = self._parsed()
         events = _get_events(cal)
         for event in events:
-            assert (
-                event.get("ORGANIZER") is None
-            ), f"ORGANIZER not removed from event: {event.get('SUMMARY')}"
+            assert event.get("ORGANIZER") is None, (
+                f"ORGANIZER not removed from event: {event.get('SUMMARY')}"
+            )
 
     def test_make_unique_creates_source_scoped_uids(self):
         """Sources 5, 6, 11, 12 use MakeUnique — UIDs should incorporate source ID."""
@@ -251,9 +251,9 @@ class TestFullCombineRegression:
         events = _get_events(cal)
         for event in events:
             dur = event.decoded("DURATION")
-            assert (
-                dur.total_seconds() == 5400
-            ), f"Expected 90min (60 duration + 30 pad), got {dur}"
+            assert dur.total_seconds() == 5400, (
+                f"Expected 90min (60 duration + 30 pad), got {dur}"
+            )
 
     def test_pad_start_minutes_shifts_start(self):
         """Source 2 has PadStartMinutes=30. DTSTART should be shifted 30 min earlier."""
@@ -265,9 +265,9 @@ class TestFullCombineRegression:
         events = _get_events(cal)
         for event in events:
             dtstart = event.decoded("DTSTART")
-            assert (
-                dtstart.minute == 30 or dtstart.hour == 9
-            ), f"Expected start shifted by 30 min, got {dtstart}"
+            assert dtstart.minute == 30 or dtstart.hour == 9, (
+                f"Expected start shifted by 30 min, got {dtstart}"
+            )
 
     def test_allday_events_get_default_duration(self):
         """School sources have all-day events without DTEND. Should get 1-day duration."""
@@ -282,9 +282,9 @@ class TestFullCombineRegression:
         for event in allday_events:
             if event.get("DURATION"):
                 dur = event.decoded("DURATION")
-                assert (
-                    dur.days == 1
-                ), f"Expected 1-day duration for all-day event, got {dur}"
+                assert dur.days == 1, (
+                    f"Expected 1-day duration for all-day event, got {dur}"
+                )
 
     def test_timed_events_without_dtend_get_default_duration(self):
         """District source has a timed event without DTEND. Should get 5-min duration."""
@@ -299,9 +299,9 @@ class TestFullCombineRegression:
         for event in timed:
             if event.get("DURATION") and not event.get("DTEND"):
                 dur = event.decoded("DURATION")
-                assert (
-                    dur.total_seconds() == 300
-                ), f"Expected 5-min default duration, got {dur}"
+                assert dur.total_seconds() == 300, (
+                    f"Expected 5-min default duration, got {dur}"
+                )
 
     def test_emoji_in_summary_preserved(self):
         """Source 10 uses emoji in SUMMARY (⚽️). Should pass through."""
@@ -465,9 +465,9 @@ END:VCALENDAR"""
         result = combiner.combine([config], "Test", days_history=0)
         cal = _parse_combined(result)
         events = _get_events(cal)
-        assert (
-            len(events) == 2
-        ), f"Expected 2 events (master + override), got {len(events)}"
+        assert len(events) == 2, (
+            f"Expected 2 events (master + override), got {len(events)}"
+        )
         summaries = [str(e.get("SUMMARY")) for e in events]
         assert "Weekly Meeting" in summaries
         assert "Weekly Meeting (moved)" in summaries

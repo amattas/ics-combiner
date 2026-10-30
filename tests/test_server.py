@@ -71,6 +71,6 @@ def test_health_is_served_while_combine_fetch_is_blocked(monkeypatch, authentica
 
     assert health.status_code == 200
     assert combine.status_code == 200
-    assert outcome[
-        "released_by_health"
-    ], "/app/health was blocked behind an in-flight combine request"
+    assert outcome["released_by_health"], (
+        "/app/health was blocked behind an in-flight combine request"
+    )
