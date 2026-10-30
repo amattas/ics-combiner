@@ -1,3 +1,10 @@
+line-length = 88
+extend-exclude = ["test_env", "azure-archive", "site"]
+
+[format]
+# Ruff 0.17 also formats Markdown code blocks; black never touched docs.
+exclude = ["*.md"]
+
 [lint]
 # BLE001: the MCP server and combiner deliberately catch Exception at feed/tool
 # boundaries, log it, and continue so one bad source cannot crash the server.

@@ -1,0 +1,46 @@
+# Checks: automatic on every push to main. On pull requests the run is created
+# but waits (using no runner minutes) at the `approve` job until a required
+# reviewer approves it in the `approval` environment; approve from the PR's
+# checks list or the run page. Manual dispatch runs the checks directly.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  approve:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    environment: approval
+    steps:
+      - run: echo "Checks approved by ${GITHUB_TRIGGERING_ACTOR}"
+
+  python:
+    needs: approve
+    # Runs when approve passed or was skipped (push/dispatch); a rejected approval stops it.
+    if: always() && needs.approve.result != 'failure' && needs.approve.result != 'cancelled'
+    uses: mattas-net/.github/.github/workflows/python-ci.yml@main
+    permissions:
+      contents: read
+    with:
+      python-versions: '["3.12", "3.13"]'
+      install: python -m pip install --quiet -r requirements-dev.txt pytest-cov ruff==0.17.2 mypy bandit
+      lint-paths: .
+      test: python -m pytest -v
+      extra-lint: bandit -r src
+      typecheck: mypy src
+      typecheck-blocking: false
+      build: false
+      audit: warn
+      audit-install: python -m pip install --quiet -r requirements.txt
+      codeql: false
