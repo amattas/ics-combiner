@@ -43,4 +43,3 @@ jobs:
       build: false
       audit: warn
       audit-install: python -m pip install --quiet -r requirements.txt
-      codeql: false
