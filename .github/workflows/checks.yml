@@ -41,5 +41,5 @@ jobs:
       typecheck: mypy src
       typecheck-blocking: false
       build: false
-      audit: warn
+      audit: strict
       audit-install: python -m pip install --quiet -r requirements.txt
