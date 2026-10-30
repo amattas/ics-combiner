@@ -11,17 +11,17 @@ on:
         type: string
 jobs:
   release:
-    uses: amattas/.github/.github/workflows/create-release.yml@main
+    uses: mattas-net/.github/.github/workflows/create-release.yml@main
     permissions:
       contents: write
       actions: read
     with:
       version: ${{ inputs.version }}
       manifest: pyproject.toml
-      require-workflow: Python package
+      require-workflow: Checks
   image:
     needs: release
-    uses: amattas/.github/.github/workflows/docker-build-push.yml@main
+    uses: mattas-net/.github/.github/workflows/docker-build-push.yml@main
     permissions:
       contents: read
       packages: write
