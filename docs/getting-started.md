@@ -14,7 +14,7 @@ This guide walks through running the ICS Combiner service locally and with Docke
 2. Install dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 3. Start the FastAPI app with Uvicorn:
@@ -34,7 +34,7 @@ This guide walks through running the ICS Combiner service locally and with Docke
 1. Install development dependencies:
 
    ```bash
-   pip install -r requirements-dev.txt
+   pip install -e ".[dev]"
    ```
 
 2. Run the unit tests:

@@ -17,7 +17,7 @@ def get_version() -> str:
     except metadata.PackageNotFoundError:
         pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
         with pyproject.open("rb") as f:
-            return tomllib.load(f)["project"]["version"]
+            return str(tomllib.load(f)["project"]["version"])
 
 
 __version__ = get_version()

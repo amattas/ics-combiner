@@ -1,3 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ics-combiner"
 version = "1.0.1"
+description = "FastAPI service that combines multiple iCalendar feeds into one calendar"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.136.1",
+    # [standard] brings uvloop and httptools (the image runs --loop uvloop --http httptools)
+    "uvicorn[standard]==0.34.3",
+    "python-dotenv==1.2.2",
+    "requests==2.33.0",
+    "icalendar==6.3.1",
+    "redis==5.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.17.2",
+    "mypy==2.3.0",
+    "bandit==1.9.4",
+    "types-requests==2.33.0.20261006",
+    # icalendar 6.x ships no inline types (7.x does)
+    "types-icalendar==6.3.1.20250914",
+    # tests/test_server.py drives the FastAPI app through httpx.ASGITransport
+    "httpx==0.28.1",
+    # tests/docs exercise scripts/publish_versioned_docs.py, which reads mkdocs YAML
+    "pyyaml==6.0.3",
+]
+
+# The import package is `src` (the image runs `uvicorn src.server:app`).
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --cov --cov-report=term-missing:skip-covered"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 70
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src"]
+strict = true
+warn_unreachable = true
