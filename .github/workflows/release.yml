@@ -31,10 +31,8 @@ jobs:
       platforms: linux/amd64,linux/arm64
   docs:
     needs: image
-    uses: ./.github/workflows/docs.yml
     permissions:
-      contents: write
-      pages: write
-      id-token: write
+      contents: write # docs.yml: the publish script pushes the gh-pages branch
+    uses: ./.github/workflows/docs.yml
     with:
       version: ${{ inputs.version }}

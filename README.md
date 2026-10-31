@@ -49,12 +49,12 @@ Endpoints
 
 Run locally
 1) Copy `.env.example` to `.env.local` and set values
-2) `pip install -r requirements.txt`
+2) `pip install -e .`
 3) `python -m uvicorn src.server:app --host 0.0.0.0 --port 8080`
 
 Run tests
-- `pip install -r requirements-dev.txt`
-- `python -m pytest`
+- `pip install -e ".[dev]"`
+- `python -m pytest -q`
 
 Docker
 - Build: `docker build -t ics-combiner .`

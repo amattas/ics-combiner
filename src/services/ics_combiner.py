@@ -83,16 +83,13 @@ class ICSCombiner:
           DTSTART:2025-11-01 13:30:00+00:00  ->  DTSTART:20251101T133000Z
         """
 
-        def _replace(match: re.Match) -> str:
+        def _replace(match: re.Match[str]) -> str:
             prop = match.group(1)  # DTSTART or DTEND
             raw_value = match.group(2).strip()
             try:
                 dt = datetime.fromisoformat(raw_value)
             except ValueError:
                 # If we cannot parse, leave the line unchanged
-                return match.group(0)
-
-            if not isinstance(dt, datetime):
                 return match.group(0)
 
             # Convert offset-aware times to UTC and emit Z suffix
@@ -267,7 +264,7 @@ class ICSCombiner:
         if retry_after is not None:
             try:
                 seconds = int(retry_after.strip())
-            except (ValueError, AttributeError):
+            except ValueError, AttributeError:
                 seconds = None
             if seconds is not None and seconds >= 0:
                 return max(failure_backoff_ttl, min(seconds, MAX_RETRY_AFTER_SECONDS))
@@ -283,7 +280,8 @@ class ICSCombiner:
             return None
 
         try:
-            return Calendar.from_ical(ics_text)
+            parsed = Calendar.from_ical(ics_text)
+            return parsed if isinstance(parsed, Calendar) else None
         except Exception:
             return None
 
@@ -451,7 +449,7 @@ class ICSCombiner:
         combined_cal.add("version", "2.0")
         combined_cal.add("x-wr-calname", name)
 
-        temp_cal: dict[str, Event] = {}
+        temp_cal: dict[tuple[str, str], Event] = {}
         seen_tz: set[str] = set()
 
         self._track_configured_sources(calendars)
@@ -478,7 +476,7 @@ class ICSCombiner:
             for tz in ical.walk("VTIMEZONE"):
                 tzid = str(tz.get("TZID", ""))
                 tz_serialized = tz.to_ical()
-                tz_key = f"{tzid}:{tz_serialized}"
+                tz_key = f"{tzid}:{tz_serialized!r}"
                 if tz_key not in seen_tz:
                     seen_tz.add(tz_key)
                     combined_cal.add_component(tz)
@@ -575,7 +573,7 @@ class ICSCombiner:
                         copied_event.pop("DURATION", None)
                         copied_event.pop("DTEND", None)
                         copied_event.add(
-                            "DURATION", timedelta(minutes=calendar.get("Duration"))
+                            "DURATION", timedelta(minutes=calendar["Duration"])
                         )
                     else:
                         has_dtend = copied_event.get("DTEND") is not None
@@ -586,11 +584,9 @@ class ICSCombiner:
                         if not has_dtend and not has_duration:
                             if isinstance(dtstart_val, datetime):
                                 copied_event.add("DURATION", timedelta(minutes=5))
-                            elif isinstance(dtstart_val, date):
-                                copied_event.add("DURATION", timedelta(days=1))
                             else:
-                                # Should not occur given the type check above, but keep guard.
-                                continue
+                                # All-day event (DTSTART type was validated above).
+                                copied_event.add("DURATION", timedelta(days=1))
 
                     # Add padding (arrival time) using the original combcal rules,
                     # but in a way that works across icalendar versions:
@@ -609,7 +605,10 @@ class ICSCombiner:
                         original_duration: timedelta | None = None
                         if dur_prop is not None:
                             try:
-                                original_duration = copied_event.decoded("DURATION")
+                                # types-icalendar leaves Component.decoded untyped
+                                original_duration = copied_event.decoded(  # type: ignore[no-untyped-call]
+                                    "DURATION"
+                                )
                             except Exception:
                                 val = getattr(dur_prop, "dt", None)
                                 if isinstance(val, timedelta):
@@ -675,9 +674,10 @@ class ICSCombiner:
                     # Remove empty lines from the description
                     if copied_event.get("DESCRIPTION"):
                         try:
-                            desc_str = copied_event.decoded("DESCRIPTION").decode(
-                                "utf-8", errors="ignore"
-                            )
+                            # types-icalendar leaves Component.decoded untyped
+                            desc_str = copied_event.decoded(  # type: ignore[no-untyped-call]
+                                "DESCRIPTION"
+                            ).decode("utf-8", errors="ignore")
                         except Exception:
                             desc_str = str(copied_event.get("DESCRIPTION"))
                         desc_str = "\n".join(

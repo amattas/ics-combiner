@@ -6,15 +6,13 @@ import os
 import ssl  # noqa: F401  # kept for compatibility if SSL kwargs are extended
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar
+from typing import Any, cast
 
 import redis
 from redis import ConnectionPool, Redis, RedisError
 from redis.connection import SSLConnection
 
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 
 @dataclass
@@ -64,7 +62,7 @@ class CacheStats:
             "uptime_seconds": time.time() - self.last_reset,
         }
 
-    def reset(self):
+    def reset(self) -> None:
         self.hits = 0
         self.misses = 0
         self.errors = 0
@@ -99,14 +97,14 @@ class RedisCache:
         health_check_interval: int = 30,
     ):
         self.host = host or os.getenv("REDIS_HOST")
-        self.port = int(port or os.getenv("REDIS_SSL_PORT", "6380"))
+        self.port = port or int(os.getenv("REDIS_SSL_PORT", "6380"))
         self.password = password or os.getenv("REDIS_KEY")
         self.use_ssl = use_ssl
 
         if not self.host:
             raise ValueError("Redis host is required (set REDIS_HOST env var)")
 
-        pool_kwargs = {
+        pool_kwargs: dict[str, Any] = {
             "host": self.host,
             "port": self.port,
             "password": self.password,
@@ -146,7 +144,7 @@ class RedisCache:
             return False
 
     @classmethod
-    def from_env(cls) -> Optional["RedisCache"]:
+    def from_env(cls) -> RedisCache | None:
         try:
             return cls()
         except (ValueError, RedisError) as e:
@@ -163,20 +161,28 @@ class RedisCache:
             self._connected = False
             return False
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def _live_client(self) -> Redis | None:
+        """Return the client when Redis is connected and responsive, else None"""
         if not self.is_connected():
+            return None
+        return self.client
+
+    def get(self, key: str, default: Any = None) -> Any:
+        client = self._live_client()
+        if client is None:
             self.stats.errors += 1
             return default
 
         self.stats.total_requests += 1
         start = time.time()
         try:
-            data = self.client.get(key)
+            # redis 5 types sync and asyncio clients alike (Awaitable | Any).
+            data = cast(bytes | None, client.get(key))
             elapsed = time.time() - start
             if data is not None:
                 self.stats.hits += 1
                 self.stats.hit_time_sum += elapsed
-                return json.loads(data.decode("utf-8"))
+                return json.loads(data)
             else:
                 self.stats.misses += 1
                 self.stats.miss_time_sum += elapsed
@@ -187,18 +193,18 @@ class RedisCache:
             return default
 
     def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
-        if not self.is_connected():
+        client = self._live_client()
+        if client is None:
             return False
         try:
             if ttl is not None and ttl <= 0:
                 # Redis rejects EX/PX values <= 0. Treat non-positive TTLs as
                 # immediate expiration so callers can disable a cache entry.
-                self.client.delete(key)
+                client.delete(key)
                 return True
 
             serialized = json.dumps(value, default=str).encode("utf-8")
-            kwargs = {"ex": ttl} if ttl is not None else {}
-            result = self.client.set(key, serialized, **kwargs)
+            result = client.set(key, serialized, ex=ttl)
             return bool(result)
         except RedisError as e:
             logger.error("Cache set error for key %s: %s", key, e)
@@ -206,10 +212,11 @@ class RedisCache:
             return False
 
     def delete(self, key: str) -> bool:
-        if not self.is_connected():
+        client = self._live_client()
+        if client is None:
             return False
         try:
-            return bool(self.client.delete(key))
+            return bool(client.delete(key))
         except RedisError as e:
             logger.error("Cache delete error for key %s: %s", key, e)
             return False

@@ -12,12 +12,13 @@ import os
 import sys
 import threading
 import time
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from ._version import __version__
 from .services.cache import RedisCache
@@ -38,9 +39,17 @@ logger = logging.getLogger(__name__)
 
 api_key = os.getenv("ICS_API_KEY")
 # Prefer SALT, but fall back to legacy MD5_SALT for backward compatibility
-path_salt = os.getenv("SALT") or os.getenv("MD5_SALT", "")
+path_salt = os.getenv("SALT") or os.getenv("MD5_SALT") or ""
 
 REDIS_RETRY_INTERVAL = 60
+
+
+@dataclass
+class _ServiceState:
+    """Lazily created combiner plus the last Redis (re)connect attempt time."""
+
+    combiner: ICSCombiner | None = None
+    last_redis_attempt: float = 0.0
 
 
 def _calc_api_hash(key: str, salt: str) -> str:
@@ -67,7 +76,9 @@ def _parse_ids(value: str | None) -> list[int] | None:
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         response = await call_next(request)
 
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -105,32 +116,33 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(SecurityMiddleware)
 
-    state = {"combiner": None, "last_redis_attempt": 0.0}
+    state = _ServiceState()
     # Combine requests run in the threadpool. Serialize them so concurrent
     # requests don't race service initialization or stampede upstream feeds
     # on a cold cache; later requests then hit the cache the first one filled.
     combine_lock = threading.Lock()
 
-    def ensure_services_initialized():
-        if state["combiner"] is None:
+    def ensure_services_initialized() -> ICSCombiner:
+        if state.combiner is None:
             cache = None
             try:
                 cache = RedisCache.from_env()
             except Exception as e:
                 logger.warning("Redis not configured or unavailable: %s", e)
-            state["combiner"] = ICSCombiner(cache=cache)
-            state["last_redis_attempt"] = time.time()
-        elif state["combiner"].cache is None:
+            state.combiner = ICSCombiner(cache=cache)
+            state.last_redis_attempt = time.time()
+        elif state.combiner.cache is None:
             now = time.time()
-            if now - state["last_redis_attempt"] >= REDIS_RETRY_INTERVAL:
-                state["last_redis_attempt"] = now
+            if now - state.last_redis_attempt >= REDIS_RETRY_INTERVAL:
+                state.last_redis_attempt = now
                 try:
                     cache = RedisCache.from_env()
                     if cache is not None:
-                        state["combiner"].cache = cache
+                        state.combiner.cache = cache
                         logger.info("Redis reconnected successfully")
                 except Exception as e:
                     logger.debug("Redis retry failed: %s", e)
+        return state.combiner
 
     def _handle_combine_request(
         request: Request, show: str | None, hide: str | None
@@ -141,8 +153,7 @@ def create_app() -> FastAPI:
     def _combine_locked(
         request: Request, show: str | None, hide: str | None
     ) -> Response:
-        ensure_services_initialized()
-        combiner: ICSCombiner = state["combiner"]
+        combiner = ensure_services_initialized()
 
         try:
             calendars, cal_name, days_history = ICSCombiner.load_sources_from_env()
@@ -208,7 +219,7 @@ def create_app() -> FastAPI:
             return await run_in_threadpool(_handle_combine_request, request, show, hide)
 
         @app.exception_handler(404)
-        async def not_found(request: Request, exc: HTTPException):
+        async def not_found(request: Request, exc: HTTPException) -> Response:
             if (
                 request.url.path.startswith("/app/")
                 and request.url.path != "/app/health"
