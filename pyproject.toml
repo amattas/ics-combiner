@@ -8,13 +8,13 @@ version = "1.0.1"
 description = "FastAPI service that combines multiple iCalendar feeds into one calendar"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.136.1",
+    "fastapi==0.162.0",
     # [standard] brings uvloop and httptools (the image runs --loop uvloop --http httptools)
-    "uvicorn[standard]==0.34.3",
-    "python-dotenv==1.2.2",
-    "requests==2.33.0",
-    "icalendar==6.3.1",
-    "redis==5.2.0",
+    "uvicorn[standard]==0.54.0",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+    "icalendar==7.3.0",
+    "redis==8.1.0",
 ]
 
 [project.optional-dependencies]
@@ -22,11 +22,11 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.17.2",
-    "mypy==2.3.0",
+    "mypy==2.4.0",
     "bandit==1.9.4",
     "types-requests==2.33.0.20261006",
     # icalendar 6.x ships no inline types (7.x does)
-    "types-icalendar==6.3.1.20250914",
+    "types-icalendar==6.3.2.20260712",
     # tests/test_server.py drives the FastAPI app through httpx.ASGITransport
     "httpx==0.28.1",
     # tests/docs exercise scripts/publish_versioned_docs.py, which reads mkdocs YAML
