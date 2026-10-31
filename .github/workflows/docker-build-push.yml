@@ -1,8 +1,13 @@
-# Manual rebuild of the Docker image for an existing tag (run from that tag).
-# Normal releases build via release.yml.
+# Manual rebuild of an existing release tag's image (e.g. after a base-image fix). Normal
+# releases build via release.yml. Pushes ghcr.io/<owner>/<repo>:<tag> (+ latest unless prerelease).
 name: Rebuild Docker Image
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Release tag to rebuild (bare semver)
+        required: true
+        type: string
 jobs:
   image:
     uses: mattas-net/.github/.github/workflows/docker-build-push.yml@main
@@ -10,5 +15,6 @@ jobs:
       contents: read
       packages: write
     with:
-      verify: false
+      ref: ${{ inputs.ref }}
+      verify: true
       platforms: linux/amd64,linux/arm64

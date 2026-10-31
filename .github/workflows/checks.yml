@@ -1,11 +1,10 @@
-# Checks — automatic on push to main; on pull requests the run waits at the
-# `approve` job until a reviewer approves it in the `approval` environment. The
-# Release workflow requires a successful run of this workflow on main HEAD.
+# Checks — automatic on push to main; PR runs wait at `approve` until a reviewer approves in the
+# `approval` environment. Release requires a successful run on main HEAD.
+# Required checks (default-branch ruleset): "checks" and "security". See mattas-net/.github STANDARD.md.
+# Until the ruleset moves to the alias contexts, the shared job id stays `python` so the legacy
+# contexts "python / checks (3.14)" and "python / security" keep being produced.
 # Deployed service: tests run on exactly the Python of the Docker image
 # (python:3.14-slim); release.yml builds and pushes the image, so no build here.
-#
-# Required checks (default-branch ruleset): "python / checks (3.14)" and
-# "python / security".
 name: Checks
 
 on:
@@ -25,6 +24,7 @@ jobs:
   approve:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     environment: approval
     steps:
       - run: echo "Checks approved by ${GITHUB_TRIGGERING_ACTOR}"
@@ -40,3 +40,25 @@ jobs:
       extra-lint: bandit -q -r src
       build: false
       audit: strict
+
+  checks:
+    needs: python
+    if: always()   # a skipped required check counts as passing, so always run and assert
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the shared checks job
+        env:
+          RESULT: ${{ needs.python.outputs.checks-result }}
+        run: test "$RESULT" = success
+
+  security:
+    needs: python
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the shared security job
+        env:
+          RESULT: ${{ needs.python.outputs.security-result }}
+        run: test "$RESULT" = success

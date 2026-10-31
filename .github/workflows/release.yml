@@ -1,6 +1,7 @@
 # Release: Actions -> Release -> enter a bare-semver version (e.g. 1.4.2) that
 # pyproject.toml on main already carries. Tags main, creates the GitHub Release,
 # builds and pushes the multi-arch image, then publishes the docs for that version.
+# Shape and inputs: mattas-net/.github STANDARD.md ("release.yml").
 name: Release
 on:
   workflow_dispatch:
