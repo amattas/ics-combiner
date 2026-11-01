@@ -1,6 +1,6 @@
 # Docs toolchain (exact pins). mike: Zensical-compatible fork, not on PyPI — pinned by commit.
 # mkdocstrings renders the API reference (docs/api.md) from src/ under Zensical.
-zensical==0.0.50
+zensical==0.0.72
 mike @ git+https://github.com/squidfunk/mike.git@2d4ad799442f4592db8ad53b179bfb33db8c69ac
 mkdocstrings==1.0.8
 mkdocstrings-python==2.0.10
