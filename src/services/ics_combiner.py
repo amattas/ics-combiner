@@ -123,15 +123,16 @@ class ICSCombiner:
         if not text:
             return None
 
-        # Try full ISO 8601 datetime first (with or without offset, with space or 'T')
+        # Try ISO date (YYYY-MM-DD) first: datetime.fromisoformat also accepts a
+        # bare date and would turn an all-day value into a midnight datetime.
         try:
-            return datetime.fromisoformat(text)
+            return date.fromisoformat(text)
         except ValueError:
             pass
 
-        # Try ISO date (YYYY-MM-DD)
+        # Then full ISO 8601 datetime (with or without offset, with space or 'T')
         try:
-            return date.fromisoformat(text)
+            return datetime.fromisoformat(text)
         except ValueError:
             return None
 

@@ -88,6 +88,18 @@ def test_parse_datetime_or_date_never_raises(text):
     assert parsed is None or isinstance(parsed, (datetime, date))
 
 
+@given(
+    st.one_of(_naive_datetimes, _aware_datetimes, st.dates()),
+    st.sampled_from([" ", "T"]),
+)
+def test_parse_datetime_or_date_round_trips_iso_values(value, sep):
+    text = (
+        value.isoformat(sep=sep) if isinstance(value, datetime) else value.isoformat()
+    )
+
+    assert ICSCombiner._parse_datetime_or_date(f"  {text}\n") == value
+
+
 def test_corpus_is_present():
     assert CORPUS_FILES, f"no seed corpus under {CORPUS}"
 
