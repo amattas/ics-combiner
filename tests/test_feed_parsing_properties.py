@@ -11,18 +11,32 @@ The corpus under ``fuzz/corpus/`` seeds the atheris target ``fuzz/fuzz_parse_ics
 replaying it here keeps every past crash input a regression test on every PR.
 """
 
+import importlib.util
 from datetime import UTC, date, datetime, timedelta, timezone
+from functools import cache
 from pathlib import Path
 
 import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
-from icalendar import Calendar
 
 from src.services.ics_combiner import ICSCombiner
 
-CORPUS = Path(__file__).resolve().parent.parent / "fuzz" / "corpus"
-CORPUS_FILES = sorted(p for p in CORPUS.rglob("*") if p.is_file())
+FUZZ_DIR = Path(__file__).resolve().parent.parent / "fuzz"
+CORPUS = FUZZ_DIR / "corpus"
+CORPUS_FILES = sorted(p for p in CORPUS.glob("*/*") if p.is_file())
+
+
+@cache
+def _target(name):
+    spec = importlib.util.spec_from_file_location(name, FUZZ_DIR / f"{name}.py")
+    assert spec is not None and spec.loader is not None, (
+        f"no fuzz target for corpus directory {name}"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.test_one_input
+
 
 # Offsets fromisoformat accepts: strictly inside +/-24h, minute resolution.
 _offsets = st.integers(min_value=-(24 * 60 - 1), max_value=24 * 60 - 1).map(
@@ -108,9 +122,4 @@ def test_corpus_is_present():
     "path", CORPUS_FILES, ids=lambda p: f"{p.parent.name}/{p.name}"
 )
 def test_fuzz_corpus_replays_within_the_exception_contract(path):
-    # Same decode the fetch path uses for remote bytes.
-    text = path.read_bytes().decode("utf-8", errors="replace")
-
-    parsed = ICSCombiner._parse_ics_text(ICSCombiner._normalize_ics_text(text))
-
-    assert parsed is None or isinstance(parsed, Calendar)
+    _target(path.parent.name)(path.read_bytes())

@@ -8,15 +8,12 @@ result is a ``Calendar`` or ``None``. Any exception is a crash.
 
 import sys
 
-import atheris
+from icalendar import Calendar
 
-with atheris.instrument_imports():
-    from icalendar import Calendar
-
-    from src.services.ics_combiner import ICSCombiner
+from src.services.ics_combiner import ICSCombiner
 
 
-def TestOneInput(data: bytes) -> None:
+def test_one_input(data: bytes) -> None:
     text = data.decode("utf-8", errors="replace")
 
     parsed = ICSCombiner._parse_ics_text(ICSCombiner._normalize_ics_text(text))
@@ -26,7 +23,10 @@ def TestOneInput(data: bytes) -> None:
 
 
 def main() -> None:
-    atheris.Setup(sys.argv, TestOneInput)
+    import atheris
+
+    atheris.instrument_all()
+    atheris.Setup(sys.argv, test_one_input)
     atheris.Fuzz()
 
 
