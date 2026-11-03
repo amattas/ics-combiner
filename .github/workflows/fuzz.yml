@@ -1,0 +1,23 @@
+# Deep fuzz run (ClusterFuzzLite batch mode, 3600 s per target) — dispatch only.
+# PR fuzzing runs inside checks.yml (`fuzz: true`) and folds into `security`.
+# See the fleet standard (mattas-net/standards, private; ci-cd/fuzzing).
+name: Fuzz
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    uses: mattas-net/.github/.github/workflows/fuzz-batch.yml@main
+    permissions:
+      contents: read
+      actions: read
+    with:
+      language: python
