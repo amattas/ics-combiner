@@ -94,7 +94,11 @@ class ICSCombiner:
 
             # Convert offset-aware times to UTC and emit Z suffix
             if dt.tzinfo is not None:
-                dt = dt.astimezone(ZoneInfo("UTC"))
+                try:
+                    dt = dt.astimezone(ZoneInfo("UTC"))
+                except OverflowError:
+                    # The UTC instant falls outside years 1-9999
+                    return match.group(0)
                 formatted = dt.strftime("%Y%m%dT%H%M%SZ")
             else:
                 formatted = dt.strftime("%Y%m%dT%H%M%S")

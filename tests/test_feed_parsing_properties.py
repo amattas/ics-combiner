@@ -11,7 +11,7 @@ The corpus under ``fuzz/corpus/`` seeds the atheris target ``fuzz/fuzz_parse_ics
 replaying it here keeps every past crash input a regression test on every PR.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -47,6 +47,36 @@ _feed_lines = st.one_of(
     st.text(),
 )
 _feeds = st.lists(_feed_lines, max_size=8).map("\n".join)
+
+
+@given(_feeds)
+@example("DTSTART:9999-12-31 23:59:59-23:59")
+@example("DTEND:0001-01-01T00:00:00+23:59")
+def test_normalize_ics_text_never_raises_and_is_idempotent(text):
+    normalized = ICSCombiner._normalize_ics_text(text)
+
+    assert isinstance(normalized, str)
+    assert ICSCombiner._normalize_ics_text(normalized) == normalized
+
+
+@given(
+    st.sampled_from(["DTSTART", "DTEND"]), _aware_datetimes, st.sampled_from([" ", "T"])
+)
+def test_normalize_ics_text_rewrites_offset_times_to_the_same_utc_instant(
+    prop, dt, sep
+):
+    normalized = ICSCombiner._normalize_ics_text(f"{prop}:{dt.isoformat(sep=sep)}")
+
+    try:
+        utc = dt.astimezone(UTC)
+    except OverflowError:
+        # The UTC instant is outside years 1-9999: the line is left as-is.
+        assert normalized == f"{prop}:{dt.isoformat(sep=sep)}"
+    else:
+        assert (
+            normalized
+            == f"{prop}:{utc.isoformat().replace('-', '').replace(':', '')[:15]}Z"
+        )
 
 
 @given(st.text())
