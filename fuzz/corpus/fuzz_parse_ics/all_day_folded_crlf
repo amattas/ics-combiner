@@ -1,0 +1,14 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seed//seed//EN
+BEGIN:VEVENT
+UID:seed-5@example.invalid
+DTSTART;VALUE=DATE:20251225
+RRULE:FREQ=WEEKLY;COUNT=3
+DESCRIPTION:a long description that is folded across
+  continuation lines\, with escapes\n and unicode é☃
+ORGANIZER;CN=Someone:mailto:someone@example.invalid
+DESCRIPTION;ENCODING=QUOTED-PRINTABLE:caf=C3=A9
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR

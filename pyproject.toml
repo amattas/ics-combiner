@@ -31,6 +31,8 @@ dev = [
     "httpx==0.28.1",
     # tests/docs exercise scripts/publish_versioned_docs.py, which reads mkdocs YAML
     "pyyaml==6.0.3",
+    # property tests for the feed normalizer/date parser (tests/test_feed_parsing_properties.py)
+    "hypothesis==6.170.12",
 ]
 
 # The import package is `src` (the image runs `uvicorn src.server:app`).

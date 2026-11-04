@@ -94,7 +94,11 @@ class ICSCombiner:
 
             # Convert offset-aware times to UTC and emit Z suffix
             if dt.tzinfo is not None:
-                dt = dt.astimezone(ZoneInfo("UTC"))
+                try:
+                    dt = dt.astimezone(ZoneInfo("UTC"))
+                except OverflowError:
+                    # The UTC instant falls outside years 1-9999
+                    return match.group(0)
                 formatted = dt.strftime("%Y%m%dT%H%M%SZ")
             else:
                 formatted = dt.strftime("%Y%m%dT%H%M%S")
@@ -119,15 +123,16 @@ class ICSCombiner:
         if not text:
             return None
 
-        # Try full ISO 8601 datetime first (with or without offset, with space or 'T')
+        # Try ISO date (YYYY-MM-DD) first: datetime.fromisoformat also accepts a
+        # bare date and would turn an all-day value into a midnight datetime.
         try:
-            return datetime.fromisoformat(text)
+            return date.fromisoformat(text)
         except ValueError:
             pass
 
-        # Try ISO date (YYYY-MM-DD)
+        # Then full ISO 8601 datetime (with or without offset, with space or 'T')
         try:
-            return date.fromisoformat(text)
+            return datetime.fromisoformat(text)
         except ValueError:
             return None
 
