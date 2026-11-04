@@ -10,6 +10,10 @@ on:
         description: Version to release (bare semver, e.g. 1.4.2)
         required: true
         type: string
+
+permissions:
+  contents: read
+
 jobs:
   release:
     uses: mattas-net/.github/.github/workflows/create-release.yml@main
