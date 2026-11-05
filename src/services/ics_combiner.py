@@ -610,10 +610,7 @@ class ICSCombiner:
                         original_duration: timedelta | None = None
                         if dur_prop is not None:
                             try:
-                                # types-icalendar leaves Component.decoded untyped
-                                original_duration = copied_event.decoded(  # type: ignore[no-untyped-call]
-                                    "DURATION"
-                                )
+                                original_duration = copied_event.decoded("DURATION")
                             except Exception:
                                 val = getattr(dur_prop, "dt", None)
                                 if isinstance(val, timedelta):
@@ -679,10 +676,9 @@ class ICSCombiner:
                     # Remove empty lines from the description
                     if copied_event.get("DESCRIPTION"):
                         try:
-                            # types-icalendar leaves Component.decoded untyped
-                            desc_str = copied_event.decoded(  # type: ignore[no-untyped-call]
-                                "DESCRIPTION"
-                            ).decode("utf-8", errors="ignore")
+                            desc_str = copied_event.decoded("DESCRIPTION").decode(
+                                "utf-8", errors="ignore"
+                            )
                         except Exception:
                             desc_str = str(copied_event.get("DESCRIPTION"))
                         desc_str = "\n".join(
