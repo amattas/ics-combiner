@@ -5,6 +5,7 @@ database (see README.md, "Running the tests"). It drops and recreates the
 cache_entries table.
 """
 
+import logging
 import os
 import time
 from collections.abc import Callable, Iterator
@@ -270,3 +271,36 @@ def test_from_env(
         assert cache is not None
         assert isinstance(cache._backend, expected)
         cache.close()
+
+
+@pytest.mark.parametrize(
+    "url", ["postgres://u:PW@[::1/db", "postgresql://u:PW%zz@127.0.0.1:1/db"]
+)
+def test_malformed_database_url_never_logs_it(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, url: str
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    monkeypatch.delenv("CACHE_BACKEND", raising=False)
+    monkeypatch.setenv("DATABASE_URL", url)
+    cache = Cache.from_env()
+    assert cache is not None
+    assert not cache.is_connected()
+    assert cache.get("k", default="d") == "d"
+    assert cache.set("k", "v") is False
+    cache.close()
+    assert not [r for r in caplog.records if "PW" in r.getMessage()]
+    errors = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errors) == 1
+    assert "DATABASE_URL is not a valid libpq connection string" in errors[0]
+
+
+def test_pool_connect_errors_are_not_logged(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG)
+    cache = Cache(PostgresBackend("postgresql://u:PW@127.0.0.1:1/db"))
+    assert cache.get("k", default="d") == "d"  # waits out the 2 s pool timeout
+    cache.close()
+    pool_records = [r for r in caplog.records if r.name == "psycopg.pool"]
+    assert not [
+        r for r in pool_records if r.getMessage().startswith("error connecting")
+    ]
+    assert len([r for r in caplog.records if r.name == "src.services.cache"]) == 1

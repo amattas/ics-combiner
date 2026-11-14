@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 logger = logging.getLogger(__name__)
@@ -185,6 +186,21 @@ _SQL_INFO = (
 )
 
 
+class _DropPoolConnectErrors(logging.Filter):
+    """Drop psycopg_pool's per-attempt "error connecting" warnings.
+
+    The pool retries in the background about once a second during an outage,
+    and libpq's message can echo parts of the URL. `Cache` already logs the
+    outage, rate limited, without the URL.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.getMessage().startswith("error connecting")
+
+
+logging.getLogger("psycopg.pool").addFilter(_DropPoolConnectErrors())
+
+
 class PostgresBackend:
     """Cache table in PostgreSQL via a small sync connection pool.
 
@@ -200,6 +216,22 @@ class PostgresBackend:
         self, conninfo: str, clock: Callable[[], float] = time.monotonic
     ) -> None:
         self._clock = clock
+        self._lock = threading.Lock()
+        self._opened = False
+        self._schema_ready = False
+        self._down_until = 0.0
+        self._sets = 0
+        self._pool: ConnectionPool | None = None
+        try:
+            conninfo_to_dict(conninfo)
+        except psycopg.Error as e:
+            # Never log str(e): libpq echoes the URL, password included.
+            logger.error(
+                "DATABASE_URL is not a valid libpq connection string (%s); "
+                "cache disabled",
+                type(e).__name__,
+            )
+            return
         self._pool = ConnectionPool(
             conninfo,
             min_size=1,
@@ -214,23 +246,22 @@ class PostgresBackend:
             },
             check=ConnectionPool.check_connection,
         )
-        self._lock = threading.Lock()
-        self._opened = False
-        self._schema_ready = False
-        self._down_until = 0.0
-        self._sets = 0
 
     def is_connected(self) -> bool:
-        return self._clock() >= self._down_until
+        """False when unconfigured (invalid URL) or backing off; no I/O."""
+        return self._pool is not None and self._clock() >= self._down_until
 
     @contextmanager
     def _connection(self) -> Iterator[psycopg.Connection[Any]]:
+        pool = self._pool
+        if pool is None:
+            raise RuntimeError("cache database is not configured")
         try:
             with self._lock:
                 if not self._opened:
-                    self._pool.open(wait=False)
+                    pool.open(wait=False)
                     self._opened = True
-            with self._pool.connection() as conn:
+            with pool.connection() as conn:
                 if not self._schema_ready:
                     self._ensure_schema(conn)
                 yield conn
@@ -296,7 +327,7 @@ class PostgresBackend:
 
     def close(self) -> None:
         with self._lock:
-            if self._opened:
+            if self._opened and self._pool is not None:
                 self._pool.close()
                 self._opened = False
 
