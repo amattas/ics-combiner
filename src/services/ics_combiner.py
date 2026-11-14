@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import requests
 from icalendar import Calendar, Event
 
-from .cache import CacheTTL, RedisCache
+from .cache import Cache, CacheTTL
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ _GUID_RE = re.compile(
 class ICSCombiner:
     def __init__(
         self,
-        cache: RedisCache | None = None,
+        cache: Cache | None = None,
         cache_namespace: str | None = None,
     ):
         self.cache = cache
@@ -291,7 +291,7 @@ class ICSCombiner:
             return None
 
     def _fetch_source_ics(self, source: dict[str, Any]) -> SourceFetchResult:
-        """Fetch and parse a single ICS source, using Redis cache if available.
+        """Fetch and parse a single ICS source, using the cache if available.
 
         Returns (ics_text, is_stale, parsed_calendar) where is_stale indicates
         the data came from a last-known-good fallback after a fetch failure.
@@ -431,7 +431,7 @@ class ICSCombiner:
         return ics_text, False, parsed_ics
 
     def fetch_source_ics(self, source: dict[str, Any]) -> tuple[str | None, bool]:
-        """Fetch a single ICS source, using Redis cache if available.
+        """Fetch a single ICS source, using the cache if available.
 
         Returns (ics_text, is_stale) where is_stale indicates the data came
         from a last-known-good fallback after a fetch failure.

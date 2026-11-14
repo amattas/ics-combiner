@@ -11,7 +11,6 @@ import logging
 import os
 import sys
 import threading
-import time
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -21,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from ._version import __version__
-from .services.cache import RedisCache
+from .services.cache import Cache
 from .services.ics_combiner import ICSCombiner
 
 # Load environment variables
@@ -41,15 +40,12 @@ api_key = os.getenv("ICS_API_KEY")
 # Prefer SALT, but fall back to legacy MD5_SALT for backward compatibility
 path_salt = os.getenv("SALT") or os.getenv("MD5_SALT") or ""
 
-REDIS_RETRY_INTERVAL = 60
-
 
 @dataclass
 class _ServiceState:
-    """Lazily created combiner plus the last Redis (re)connect attempt time."""
+    """Lazily created combiner (built once, on the first combine request)."""
 
     combiner: ICSCombiner | None = None
-    last_redis_attempt: float = 0.0
 
 
 def _calc_api_hash(key: str, salt: str) -> str:
@@ -124,24 +120,9 @@ def create_app() -> FastAPI:
 
     def ensure_services_initialized() -> ICSCombiner:
         if state.combiner is None:
-            cache = None
-            try:
-                cache = RedisCache.from_env()
-            except Exception as e:
-                logger.warning("Redis not configured or unavailable: %s", e)
-            state.combiner = ICSCombiner(cache=cache)
-            state.last_redis_attempt = time.time()
-        elif state.combiner.cache is None:
-            now = time.time()
-            if now - state.last_redis_attempt >= REDIS_RETRY_INTERVAL:
-                state.last_redis_attempt = now
-                try:
-                    cache = RedisCache.from_env()
-                    if cache is not None:
-                        state.combiner.cache = cache
-                        logger.info("Redis reconnected successfully")
-                except Exception as e:
-                    logger.debug("Redis retry failed: %s", e)
+            # from_env() never connects: with DATABASE_URL set the cache exists
+            # even if the database is down, and recovers on its own.
+            state.combiner = ICSCombiner(cache=Cache.from_env())
         return state.combiner
 
     def _handle_combine_request(

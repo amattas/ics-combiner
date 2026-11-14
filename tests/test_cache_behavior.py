@@ -1,12 +1,14 @@
+import json
+
 import pytest
 import requests
 from icalendar import Calendar
 from requests.structures import CaseInsensitiveDict
 
 from src.services.cache import (
-    CacheStats,
+    Cache,
     CacheTTL,
-    RedisCache,
+    MemoryBackend,
     _get_cache_ttl,
     _get_optional_cache_ttl,
 )
@@ -54,59 +56,35 @@ class FakeResponse:
         pass
 
 
-class MemoryCache:
+class RecordingBackend(MemoryBackend):
+    """MemoryBackend that also records the writes the combiner makes."""
+
     def __init__(self):
-        self.store = {}
+        super().__init__()
         self.set_calls = []
         self.deleted = []
 
-    def is_connected(self):
-        return True
-
-    def get(self, key, default=None):
-        return self.store.get(key, default)
-
-    def set(self, key, value, ttl=None):
-        self.set_calls.append((key, value, ttl))
-        if ttl is not None and ttl <= 0:
-            self.store.pop(key, None)
-            return True
-        self.store[key] = value
-        return True
+    def set(self, key, value, ttl):
+        self.set_calls.append((key, json.loads(value), ttl))
+        super().set(key, value, ttl)
 
     def delete(self, key):
         self.deleted.append(key)
-        self.store.pop(key, None)
-        return True
+        return super().delete(key)
+
+    def seed(self, key, value):
+        """Pre-populate an entry (no expiry) without recording it as a write."""
+        super().set(key, json.dumps(value), None)
 
 
-class FakeRedisClient:
-    def __init__(self):
-        self.deleted = []
-        self.set_calls = []
-
-    def ping(self):
-        return True
-
-    def delete(self, key):
-        self.deleted.append(key)
-        return 1
-
-    def set(self, *args, **kwargs):
-        self.set_calls.append((args, kwargs))
-        return True
+@pytest.fixture
+def backend():
+    return RecordingBackend()
 
 
-def test_redis_set_with_zero_ttl_expires_without_invalid_ex_argument():
-    client = FakeRedisClient()
-    cache = RedisCache.__new__(RedisCache)
-    cache.client = client
-    cache.stats = CacheStats()
-    cache._connected = True
-
-    assert cache.set("ics:source:1", "value", ttl=0)
-    assert client.deleted == ["ics:source:1"]
-    assert client.set_calls == []
+@pytest.fixture
+def cache(backend):
+    return Cache(backend)
 
 
 def test_failure_backoff_ttl_rejects_zero(monkeypatch):
@@ -191,12 +169,11 @@ def test_fetch_without_cache_failure(monkeypatch):
     assert is_stale is False
 
 
-def test_fetch_cache_hit_skips_network(monkeypatch):
-    cache = MemoryCache()
+def test_fetch_cache_hit_skips_network(monkeypatch, cache, backend):
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[cache_key] = VALID_ICS
+    backend.seed(cache_key, VALID_ICS)
 
     def fail_get(*_args, **_kwargs):
         raise AssertionError("network should not be called on cache hit")
@@ -209,12 +186,11 @@ def test_fetch_cache_hit_skips_network(monkeypatch):
     assert is_stale is False
 
 
-def test_combine_reuses_calendar_parsed_during_fetch(monkeypatch):
-    cache = MemoryCache()
+def test_combine_reuses_calendar_parsed_during_fetch(monkeypatch, cache, backend):
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[cache_key] = VALID_ICS
+    backend.seed(cache_key, VALID_ICS)
     parse_calls = []
     original_from_ical = Calendar.from_ical
 
@@ -236,9 +212,10 @@ def test_combine_reuses_calendar_parsed_during_fetch(monkeypatch):
     assert parse_calls == [VALID_ICS]
 
 
-def test_successful_fetch_sets_primary_and_last_known_good_cache(monkeypatch):
+def test_successful_fetch_sets_primary_and_last_known_good_cache(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     source = {
         "Id": 1,
         "Url": "https://example.com/calendar.ics",
@@ -257,19 +234,20 @@ def test_successful_fetch_sets_primary_and_last_known_good_cache(monkeypatch):
 
     assert ics_text == VALID_ICS
     assert is_stale is False
-    assert (cache_key, VALID_ICS, 123) in cache.set_calls
-    assert (lkg_key, VALID_ICS, CacheTTL.ICS_SOURCE_LKG) in cache.set_calls
+    assert (cache_key, VALID_ICS, 123) in backend.set_calls
+    assert (lkg_key, VALID_ICS, CacheTTL.ICS_SOURCE_LKG) in backend.set_calls
     assert CacheTTL.ICS_SOURCE_LKG is None
 
 
-def test_primary_cache_hit_backfills_last_known_good_without_expiration(monkeypatch):
+def test_primary_cache_hit_backfills_last_known_good_without_expiration(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
     lkg_key = f"{cache_key}:lkg"
-    cache.store[cache_key] = VALID_ICS
+    backend.seed(cache_key, VALID_ICS)
 
     def fail_get(*_args, **_kwargs):
         raise AssertionError("network should not be called on cache hit")
@@ -280,12 +258,13 @@ def test_primary_cache_hit_backfills_last_known_good_without_expiration(monkeypa
 
     assert ics_text == VALID_ICS
     assert is_stale is False
-    assert (lkg_key, VALID_ICS, None) in cache.set_calls
+    assert (lkg_key, VALID_ICS, None) in backend.set_calls
 
 
-def test_fetch_failure_negative_caches_and_serves_last_known_good(monkeypatch):
+def test_fetch_failure_negative_caches_and_serves_last_known_good(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     source = {
         "Id": 1,
         "Url": "https://example.com/calendar.ics",
@@ -293,7 +272,7 @@ def test_fetch_failure_negative_caches_and_serves_last_known_good(monkeypatch):
     }
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[f"{cache_key}:lkg"] = VALID_ICS
+    backend.seed(f"{cache_key}:lkg", VALID_ICS)
 
     def raise_request_exception(*_args, **_kwargs):
         raise requests.RequestException("upstream unavailable")
@@ -307,18 +286,19 @@ def test_fetch_failure_negative_caches_and_serves_last_known_good(monkeypatch):
 
     assert ics_text == VALID_ICS
     assert is_stale is True
-    assert (f"{cache_key}:lkg", VALID_ICS, None) in cache.set_calls
-    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in cache.set_calls
+    assert (f"{cache_key}:lkg", VALID_ICS, None) in backend.set_calls
+    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in backend.set_calls
 
 
-def test_fetch_failure_migrates_legacy_last_known_good_cache(monkeypatch):
+def test_fetch_failure_migrates_legacy_last_known_good_cache(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache, cache_namespace="family")
     cache_key = combiner._cache_key_for_source(source)
     legacy_cache_key = combiner._legacy_cache_key_for_source(source)
-    cache.store[f"{legacy_cache_key}:lkg"] = VALID_ICS
+    backend.seed(f"{legacy_cache_key}:lkg", VALID_ICS)
 
     def raise_request_exception(*_args, **_kwargs):
         raise requests.RequestException("upstream unavailable")
@@ -332,23 +312,24 @@ def test_fetch_failure_migrates_legacy_last_known_good_cache(monkeypatch):
 
     assert ics_text == VALID_ICS
     assert is_stale is True
-    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in cache.set_calls
-    assert (f"{cache_key}:lkg", VALID_ICS, None) in cache.set_calls
+    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in backend.set_calls
+    assert (f"{cache_key}:lkg", VALID_ICS, None) in backend.set_calls
 
 
-def test_combine_prunes_removed_source_cache_for_current_namespace(monkeypatch):
+def test_combine_prunes_removed_source_cache_for_current_namespace(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     combiner = ICSCombiner(cache=cache, cache_namespace="family")
     active = {"Id": 1, "Url": "https://example.com/active.ics"}
     removed = {"Id": 2, "Url": "https://example.com/removed.ics"}
     active_key = combiner._cache_key_for_source(active)
     removed_key = combiner._cache_key_for_source(removed)
     other_app_key = "ics:other:source:2:abc"
-    cache.store[combiner._source_index_key()] = [active_key, removed_key]
-    cache.store[removed_key] = VALID_ICS
-    cache.store[f"{removed_key}:lkg"] = VALID_ICS
-    cache.store[other_app_key] = VALID_ICS
+    backend.seed(combiner._source_index_key(), [active_key, removed_key])
+    backend.seed(removed_key, VALID_ICS)
+    backend.seed(f"{removed_key}:lkg", VALID_ICS)
+    backend.seed(other_app_key, VALID_ICS)
 
     def fake_fetch(source):
         parsed = ICSCombiner._parse_ics_text(VALID_ICS)
@@ -359,14 +340,13 @@ def test_combine_prunes_removed_source_cache_for_current_namespace(monkeypatch):
     combined = combiner.combine([active], "Combined", days_history=0)
 
     assert b"SUMMARY:Cached event" in combined
-    assert removed_key not in cache.store
-    assert f"{removed_key}:lkg" not in cache.store
-    assert cache.store[combiner._source_index_key()] == [active_key]
-    assert cache.store[other_app_key] == VALID_ICS
+    assert cache.get(removed_key) is None
+    assert cache.get(f"{removed_key}:lkg") is None
+    assert cache.get(combiner._source_index_key()) == [active_key]
+    assert cache.get(other_app_key) == VALID_ICS
 
 
-def test_zero_refresh_seconds_still_backs_off_failures(monkeypatch):
-    cache = MemoryCache()
+def test_zero_refresh_seconds_still_backs_off_failures(monkeypatch, cache, backend):
     source = {
         "Id": 1,
         "Url": "https://example.com/calendar.ics",
@@ -374,7 +354,7 @@ def test_zero_refresh_seconds_still_backs_off_failures(monkeypatch):
     }
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[f"{cache_key}:lkg"] = VALID_ICS
+    backend.seed(f"{cache_key}:lkg", VALID_ICS)
 
     def raise_request_exception(*_args, **_kwargs):
         raise requests.RequestException("upstream unavailable")
@@ -388,18 +368,19 @@ def test_zero_refresh_seconds_still_backs_off_failures(monkeypatch):
 
     assert ics_text == VALID_ICS
     assert is_stale is True
-    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in cache.set_calls
-    assert cache.store[cache_key] == ""
+    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in backend.set_calls
+    assert cache.get(cache_key) == ""
 
 
-def test_negative_cache_hit_skips_network_and_serves_last_known_good(monkeypatch):
+def test_negative_cache_hit_skips_network_and_serves_last_known_good(
+    monkeypatch, cache, backend
+):
     monkeypatch.setattr(CacheTTL, "ICS_SOURCE_LKG", None)
-    cache = MemoryCache()
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[cache_key] = ""
-    cache.store[f"{cache_key}:lkg"] = VALID_ICS
+    backend.seed(cache_key, "")
+    backend.seed(f"{cache_key}:lkg", VALID_ICS)
 
     def fail_get(*_args, **_kwargs):
         raise AssertionError("network should not be called on negative cache hit")
@@ -412,13 +393,12 @@ def test_negative_cache_hit_skips_network_and_serves_last_known_good(monkeypatch
     assert is_stale is True
 
 
-def test_lkg_cache_hit_does_not_renormalize(monkeypatch):
-    cache = MemoryCache()
+def test_lkg_cache_hit_does_not_renormalize(monkeypatch, cache, backend):
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[cache_key] = ""
-    cache.store[f"{cache_key}:lkg"] = VALID_ICS
+    backend.seed(cache_key, "")
+    backend.seed(f"{cache_key}:lkg", VALID_ICS)
 
     def fail_normalize(_ics_text):
         raise AssertionError("stored last-known-good ICS should not be renormalized")
@@ -437,8 +417,9 @@ def test_lkg_cache_hit_does_not_renormalize(monkeypatch):
     assert is_stale is True
 
 
-def test_invalid_http_200_does_not_replace_last_known_good_cache(monkeypatch):
-    cache = MemoryCache()
+def test_invalid_http_200_does_not_replace_last_known_good_cache(
+    monkeypatch, cache, backend
+):
     source = {
         "Id": 1,
         "Url": "https://example.com/calendar.ics",
@@ -447,7 +428,7 @@ def test_invalid_http_200_does_not_replace_last_known_good_cache(monkeypatch):
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
     lkg_key = f"{cache_key}:lkg"
-    cache.store[lkg_key] = VALID_ICS
+    backend.seed(lkg_key, VALID_ICS)
 
     monkeypatch.setattr(
         "src.services.ics_combiner.requests.get",
@@ -458,16 +439,17 @@ def test_invalid_http_200_does_not_replace_last_known_good_cache(monkeypatch):
 
     assert ics_text == VALID_ICS
     assert is_stale is True
-    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in cache.set_calls
-    assert cache.store[lkg_key] == VALID_ICS
+    assert (cache_key, "", CacheTTL.ICS_SOURCE_FAILURE_BACKOFF) in backend.set_calls
+    assert cache.get(lkg_key) == VALID_ICS
 
 
-def test_invalid_primary_cache_entry_is_deleted_and_refetched(monkeypatch):
-    cache = MemoryCache()
+def test_invalid_primary_cache_entry_is_deleted_and_refetched(
+    monkeypatch, cache, backend
+):
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
-    cache.store[cache_key] = INVALID_ICS
+    backend.seed(cache_key, INVALID_ICS)
     calls = []
 
     def get(url, timeout, **kwargs):
@@ -480,7 +462,7 @@ def test_invalid_primary_cache_entry_is_deleted_and_refetched(monkeypatch):
 
     assert ics_text == VALID_ICS_UPDATED
     assert is_stale is False
-    assert cache.deleted == [cache_key]
+    assert backend.deleted == [cache_key]
     assert calls == [(source["Url"], 15)]
 
 
@@ -504,9 +486,8 @@ def test_invalid_primary_cache_entry_is_deleted_and_refetched(monkeypatch):
     ],
 )
 def test_fetch_failure_negative_cache_ttl_honors_retry_after_and_429(
-    monkeypatch, status_code, retry_after, expected_ttl
+    monkeypatch, status_code, retry_after, expected_ttl, cache, backend
 ):
-    cache = MemoryCache()
     source = {"Id": 1, "Url": "https://example.com/calendar.ics"}
     combiner = ICSCombiner(cache=cache)
     cache_key = combiner._cache_key_for_source(source)
@@ -522,7 +503,7 @@ def test_fetch_failure_negative_cache_ttl_honors_retry_after_and_429(
 
     combiner.fetch_source_ics(source)
 
-    assert (cache_key, "", expected_ttl) in cache.set_calls
+    assert (cache_key, "", expected_ttl) in backend.set_calls
 
 
 def test_fetch_sends_identifying_user_agent_header(monkeypatch):

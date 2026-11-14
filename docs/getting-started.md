@@ -8,7 +8,7 @@ This guide walks through running the ICS Combiner service locally and with Docke
 
    ```bash
    cp .env.example .env.local
-   # edit .env.local with your ICS sources, Redis, and auth settings
+   # edit .env.local with your ICS sources, cache (DATABASE_URL), and auth settings
    ```
 
 2. Install dependencies:
