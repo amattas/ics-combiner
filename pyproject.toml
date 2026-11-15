@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ics-combiner"
-version = "1.0.1"
+version = "1.1.0"
 description = "FastAPI service that combines multiple iCalendar feeds into one calendar"
 requires-python = ">=3.14"
 dependencies = [
@@ -14,7 +14,8 @@ dependencies = [
     "python-dotenv==1.2.4",
     "requests==2.34.2",
     "icalendar==7.3.0",
-    "redis==8.1.0",
+    # Cache: PostgreSQL (sync psycopg 3 + connection pool; binary wheel ships libpq)
+    "psycopg[binary,pool]==3.3.9",
 ]
 
 [project.optional-dependencies]

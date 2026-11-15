@@ -15,7 +15,7 @@ SALT = "test-salt"
 
 def _load_server(monkeypatch, authenticated: bool):
     """Import src.server fresh so create_app() sees the patched environment."""
-    monkeypatch.delenv("REDIS_HOST", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv(
         "ICS_SOURCES",
         json.dumps([{"Id": 1, "Url": "https://example.invalid/cal.ics"}]),

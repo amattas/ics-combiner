@@ -1,6 +1,6 @@
 # ICS Combiner
 
-ICS Combiner is a FastAPI service that merges multiple iCalendar (ICS) feeds into a single combined calendar, with optional per‑calendar transforms and Redis‑backed caching.
+ICS Combiner is a FastAPI service that merges multiple iCalendar (ICS) feeds into a single combined calendar, with optional per‑calendar transforms and PostgreSQL‑backed caching.
 
 Use this documentation to:
 
