@@ -1,0 +1,3709 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="FastAPI service for combining multiple iCalendar feeds into a single calendar">
+      
+      
+      
+        <link rel="canonical" href="https://amattas.github.io/ics-combiner/dev/api/">
+      
+      
+      
+        <link rel="prev" href="../endpoints/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.73">
+    
+    
+      
+        <title>API Reference - ICS Combiner</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.4ab2de0c.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="ICS Combiner" class="md-header__button md-logo" aria-label="ICS Combiner" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ICS Combiner
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/amattas/ics-combiner" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    amattas/ics-combiner
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="ICS Combiner" class="md-nav__button md-logo" aria-label="ICS Combiner" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    ICS Combiner
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/amattas/ics-combiner" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    amattas/ics-combiner
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Getting Started
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configuration
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../endpoints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Endpoints
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#services.ics_combiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ics_combiner
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ics_combiner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.SourceFetchResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        SourceFetchResult
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.MAX_ICS_RESPONSE_BYTES" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MAX_ICS_RESPONSE_BYTES
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.USER_AGENT" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        USER_AGENT
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.MAX_RETRY_AFTER_SECONDS" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MAX_RETRY_AFTER_SECONDS
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICSCombiner
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ICSCombiner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.cache_namespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache_namespace
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.load_sources_from_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        load_sources_from_env
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.fetch_source_ics" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        fetch_source_ics
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.combine" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        combine
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#services.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.APPLICATION_NAME" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        APPLICATION_NAME
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheStats
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheStats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hits
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.misses" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        misses
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        errors
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.total_requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        total_requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hit_time_sum" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hit_time_sum
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.miss_time_sum" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        miss_time_sum
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.last_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        last_reset
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hit_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hit_rate
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.miss_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        miss_rate
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.avg_hit_time" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        avg_hit_time
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.avg_miss_time" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        avg_miss_time
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.to_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        to_dict
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MemoryBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MemoryBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        PostgresBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgresBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Cache
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        stats
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.from_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        from_env
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.get_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get_stats
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheTTL
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheTTL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_DEFAULT" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_DEFAULT
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_LKG" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_LKG
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_FAILURE_BACKOFF" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_FAILURE_BACKOFF
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_RATE_LIMIT_BACKOFF
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#services.ics_combiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ics_combiner
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ics_combiner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.SourceFetchResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        SourceFetchResult
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.MAX_ICS_RESPONSE_BYTES" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MAX_ICS_RESPONSE_BYTES
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.USER_AGENT" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        USER_AGENT
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.MAX_RETRY_AFTER_SECONDS" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MAX_RETRY_AFTER_SECONDS
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICSCombiner
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ICSCombiner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.cache_namespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache_namespace
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.load_sources_from_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        load_sources_from_env
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.fetch_source_ics" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        fetch_source_ics
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.ics_combiner.ICSCombiner.combine" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        combine
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#services.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cache
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.APPLICATION_NAME" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        APPLICATION_NAME
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheStats
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheStats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hits
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.misses" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        misses
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        errors
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.total_requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        total_requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hit_time_sum" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hit_time_sum
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.miss_time_sum" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        miss_time_sum
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.last_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        last_reset
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.hit_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        hit_rate
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.miss_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        miss_rate
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.avg_hit_time" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        avg_hit_time
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.avg_miss_time" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        avg_miss_time
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheStats.to_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        to_dict
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MemoryBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MemoryBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.MemoryBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        PostgresBackend
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgresBackend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.PostgresBackend.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Cache
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        stats
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.from_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        from_env
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.is_connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        is_connected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.get" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        delete
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.info" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        info
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.get_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        get_stats
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.Cache.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        CacheTTL
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CacheTTL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_DEFAULT" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_DEFAULT
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_LKG" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_LKG
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_FAILURE_BACKOFF" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_FAILURE_BACKOFF
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services.cache.CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ICS_SOURCE_RATE_LIMIT_BACKOFF
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<p>Generated from the docstrings in <code>src/</code> by mkdocstrings at build time.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="services.ics_combiner" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">ics_combiner</span>
+
+
+<a href="#services.ics_combiner" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.ics_combiner.logger" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">logger</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.logger" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.ics_combiner.SourceFetchResult" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">SourceFetchResult</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.SourceFetchResult" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">SourceFetchResult</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">Calendar</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.ics_combiner.MAX_ICS_RESPONSE_BYTES" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">MAX_ICS_RESPONSE_BYTES</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.MAX_ICS_RESPONSE_BYTES" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">MAX_ICS_RESPONSE_BYTES</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.ics_combiner.USER_AGENT" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">USER_AGENT</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.USER_AGENT" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">USER_AGENT</span> <span class="o">=</span> <span class="s1">'ics-combiner/1.0 (+https://github.com/amattas/ics-combiner)'</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.ics_combiner.MAX_RETRY_AFTER_SECONDS" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">MAX_RETRY_AFTER_SECONDS</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.MAX_RETRY_AFTER_SECONDS" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">MAX_RETRY_AFTER_SECONDS</span> <span class="o">=</span> <span class="mi">86400</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.ics_combiner.ICSCombiner" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ICSCombiner</span>
+
+
+<a href="#services.ics_combiner.ICSCombiner" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ICSCombiner</span><span class="p">(</span><span class="n">cache</span><span class="p">:</span> <span class="n">Cache</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.ics_combiner.ICSCombiner.cache" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">cache</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.ICSCombiner.cache" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.ics_combiner.ICSCombiner.cache_namespace" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">cache_namespace</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.ics_combiner.ICSCombiner.cache_namespace" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cache_namespace</span> <span class="o">=</span> <span class="n">cache_namespace</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_namespace_from_env</span><span class="p">()</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.ics_combiner.ICSCombiner.load_sources_from_env" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">load_sources_from_env</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#services.ics_combiner.ICSCombiner.load_sources_from_env" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">load_sources_from_env</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.ics_combiner.ICSCombiner.fetch_source_ics" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">fetch_source_ics</span>
+
+
+<a href="#services.ics_combiner.ICSCombiner.fetch_source_ics" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">fetch_source_ics</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Fetch a single ICS source, using the cache if available.</p>
+<p>Returns (ics_text, is_stale) where is_stale indicates the data came
+from a last-known-good fallback after a fetch failure.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.ics_combiner.ICSCombiner.combine" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">combine</span>
+
+
+<a href="#services.ics_combiner.ICSCombiner.combine" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">combine</span><span class="p">(</span><span class="n">calendars</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">days_history</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">show</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">hide</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="services.cache" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">cache</span>
+
+
+<a href="#services.cache" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Cache layer for ICS Combiner.</p>
+<p><code>Cache</code> is the facade the app uses. It serializes values as JSON, keeps
+hit/miss statistics, and never raises into the request path: backend errors are
+logged (rate limited), counted in <code>CacheStats.errors</code>, and turned into misses.</p>
+<p>Backends:
+- <code>PostgresBackend</code>: a table in the service's own PostgreSQL database
+  (<code>DATABASE_URL</code>). Connects lazily, backs off for 30 s after any database
+  error, and creates its table on first use.
+- <code>MemoryBackend</code>: a process-local dict for local development and tests
+  (<code>CACHE_BACKEND=memory</code>).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.cache.logger" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">logger</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.cache.logger" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="services.cache.APPLICATION_NAME" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">APPLICATION_NAME</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#services.cache.APPLICATION_NAME" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">APPLICATION_NAME</span> <span class="o">=</span> <span class="s1">'ics-combiner'</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.CacheStats" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CacheStats</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CacheStats</span><span class="p">(</span><span class="n">hits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">misses</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">errors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">total_requests</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">hit_time_sum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">miss_time_sum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">last_reset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Cache performance metrics</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.hits" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">hits</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.hits" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">hits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.misses" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">misses</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.misses" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">misses</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.errors" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">errors</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.errors" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">errors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.total_requests" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">total_requests</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.total_requests" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">total_requests</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.hit_time_sum" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">hit_time_sum</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.hit_time_sum" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">hit_time_sum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.miss_time_sum" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">miss_time_sum</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.miss_time_sum" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">miss_time_sum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.last_reset" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">last_reset</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.last_reset" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">last_reset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.hit_rate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">hit_rate</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.hit_rate" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">hit_rate</span><span class="p">:</span> <span class="nb">float</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.miss_rate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">miss_rate</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.miss_rate" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">miss_rate</span><span class="p">:</span> <span class="nb">float</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.avg_hit_time" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">avg_hit_time</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.avg_hit_time" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">avg_hit_time</span><span class="p">:</span> <span class="nb">float</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Average time for cache hits in milliseconds</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheStats.avg_miss_time" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">avg_miss_time</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#services.cache.CacheStats.avg_miss_time" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">avg_miss_time</span><span class="p">:</span> <span class="nb">float</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Average time for cache misses in milliseconds</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheStats.to_dict" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_dict</span>
+
+
+<a href="#services.cache.CacheStats.to_dict" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">to_dict</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.CacheBackend" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CacheBackend</span>
+
+
+<a href="#services.cache.CacheBackend" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Storage behind <code>Cache</code>. Values are already-serialized JSON text.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheBackend.name" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">name</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheBackend.name" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.is_connected" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">is_connected</span>
+
+
+<a href="#services.cache.CacheBackend.is_connected" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">is_connected</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#services.cache.CacheBackend.get" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.set" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">set</span>
+
+
+<a href="#services.cache.CacheBackend.set" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.delete" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delete</span>
+
+
+<a href="#services.cache.CacheBackend.delete" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">info</span>
+
+
+<a href="#services.cache.CacheBackend.info" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">info</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.CacheBackend.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#services.cache.CacheBackend.close" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.MemoryBackend" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MemoryBackend</span>
+
+
+<a href="#services.cache.MemoryBackend" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">MemoryBackend</span><span class="p">(</span><span class="n">clock</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Process-local backend for local development and tests.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.MemoryBackend.name" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">name</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.MemoryBackend.name" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">name</span> <span class="o">=</span> <span class="s1">'memory'</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.is_connected" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">is_connected</span>
+
+
+<a href="#services.cache.MemoryBackend.is_connected" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">is_connected</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#services.cache.MemoryBackend.get" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.set" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">set</span>
+
+
+<a href="#services.cache.MemoryBackend.set" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.delete" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delete</span>
+
+
+<a href="#services.cache.MemoryBackend.delete" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">info</span>
+
+
+<a href="#services.cache.MemoryBackend.info" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">info</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.MemoryBackend.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#services.cache.MemoryBackend.close" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.PostgresBackend" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">PostgresBackend</span>
+
+
+<a href="#services.cache.PostgresBackend" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PostgresBackend</span><span class="p">(</span><span class="n">conninfo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">clock</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Cache table in PostgreSQL via a small sync connection pool.</p>
+<p>Constructing it does no I/O. The pool opens on the first operation, the
+table is created once per process after the first successful connect, and
+any database error starts a 30 s backoff during which every operation is a
+miss and <code>is_connected()</code> is False (it never does I/O itself).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.PostgresBackend.name" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">name</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.PostgresBackend.name" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">name</span> <span class="o">=</span> <span class="s1">'postgres'</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.is_connected" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">is_connected</span>
+
+
+<a href="#services.cache.PostgresBackend.is_connected" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">is_connected</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>False when unconfigured (invalid URL) or backing off; no I/O.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#services.cache.PostgresBackend.get" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.set" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">set</span>
+
+
+<a href="#services.cache.PostgresBackend.set" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.delete" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delete</span>
+
+
+<a href="#services.cache.PostgresBackend.delete" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">info</span>
+
+
+<a href="#services.cache.PostgresBackend.info" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">info</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.PostgresBackend.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#services.cache.PostgresBackend.close" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.Cache" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Cache</span>
+
+
+<a href="#services.cache.Cache" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Cache</span><span class="p">(</span><span class="n">backend</span><span class="p">:</span> <span class="n">CacheBackend</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Cache facade: JSON values, statistics, and a never-raise error contract.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.Cache.stats" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">stats</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.Cache.stats" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">CacheStats</span><span class="p">()</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.from_env" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_env</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#services.cache.Cache.from_env" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_env</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Cache</span> <span class="o">|</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p><code>CACHE_BACKEND=memory</code>, else <code>DATABASE_URL</code>, else no cache.</p>
+<p>Does not connect: the PostgreSQL pool opens on first use, so a database
+that is down at startup only means misses until it comes back.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.is_connected" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">is_connected</span>
+
+
+<a href="#services.cache.Cache.is_connected" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">is_connected</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>True unless the backend is backing off after an error (no I/O).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#services.cache.Cache.get" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.set" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">set</span>
+
+
+<a href="#services.cache.Cache.set" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Store <code>value</code> for <code>ttl</code> seconds (None: no expiry; &lt;= 0: delete, False).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.delete" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delete</span>
+
+
+<a href="#services.cache.Cache.delete" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">info</span>
+
+
+<a href="#services.cache.Cache.info" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">info</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Backend name plus server_version, entries, expired_pending, table_bytes.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.get_stats" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_stats</span>
+
+
+<a href="#services.cache.Cache.get_stats" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_stats</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CacheStats</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="services.cache.Cache.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#services.cache.Cache.close" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="services.cache.CacheTTL" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CacheTTL</span>
+
+
+<a href="#services.cache.CacheTTL" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheTTL.ICS_SOURCE_DEFAULT" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">ICS_SOURCE_DEFAULT</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheTTL.ICS_SOURCE_DEFAULT" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ICS_SOURCE_DEFAULT</span> <span class="o">=</span> <span class="n">_get_cache_ttl</span><span class="p">(</span><span class="s1">'ICS_SOURCE_DEFAULT'</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheTTL.ICS_SOURCE_LKG" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">ICS_SOURCE_LKG</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheTTL.ICS_SOURCE_LKG" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ICS_SOURCE_LKG</span> <span class="o">=</span> <span class="n">_get_optional_cache_ttl</span><span class="p">(</span><span class="s1">'ICS_SOURCE_LKG'</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheTTL.ICS_SOURCE_FAILURE_BACKOFF" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">ICS_SOURCE_FAILURE_BACKOFF</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheTTL.ICS_SOURCE_FAILURE_BACKOFF" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ICS_SOURCE_FAILURE_BACKOFF</span> <span class="o">=</span> <span class="n">_get_cache_ttl</span><span class="p">(</span><span class="s1">'ICS_SOURCE_FAILURE_BACKOFF'</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="n">minimum</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="services.cache.CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">ICS_SOURCE_RATE_LIMIT_BACKOFF</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#services.cache.CacheTTL.ICS_SOURCE_RATE_LIMIT_BACKOFF" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ICS_SOURCE_RATE_LIMIT_BACKOFF</span> <span class="o">=</span> <span class="n">_get_cache_ttl</span><span class="p">(</span><span class="s1">'ICS_SOURCE_RATE_LIMIT_BACKOFF'</span><span class="p">,</span> <span class="mi">3600</span><span class="p">,</span> <span class="n">minimum</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.sections","navigation.top","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"latest","provider":"mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.77dd0ce9.min.js"></script>
+      
+    
+  </body>
+</html>
